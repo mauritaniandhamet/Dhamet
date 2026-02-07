@@ -1,0 +1,6 @@
+
+numpy>=1.24
+torch>=2.1
+onnx>=1.14
+firebase-admin>=6.2
+requests>=2.31

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+
+<!-- Section: index.html — HTML page -->
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1,viewport-fit=cover" name="viewport"/>
+<meta content="light dark" name="color-scheme"/>
+<title data-i18n="auth.brandFull">لعبة ظامت الموريتانية</title>
+<link href="assets/icons/icon.svg" rel="icon" type="image/svg+xml"/>
+<link href="assets/icons/icon.png" rel="icon" type="image/png"/>
+<link href="css/style.css" rel="stylesheet"/>
+<link href="css/pages.css" rel="stylesheet"/>
+<link href="css/auth.css" rel="stylesheet"/>
+<script>
+    // Apply theme early (reuses existing settings key if present)
+    (function () {
+      try {
+        var t = localStorage.getItem("zamat.theme");
+        if (t !== "dark" && t !== "light") t = "light";
+        document.documentElement.classList.toggle("dark", t === "dark");
+      } catch (e) {}
+    })();
+  </script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+<script src="js/firebase.config.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/modal.js"></script>
+<script src="js/app.bundle.js"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PZJ0X3E4KD');
+</script>
+</head>
+<body class="z-auth-page">
+<div class="z-auth-wrap" data-auth-current="login" id="authRoot">
+<div class="z-auth-brand"><div aria-hidden="true" class="z-auth-brand-spacer"></div><div class="brand brand-center"><img alt="Z" src="assets/icons/icon.svg"/><h1 data-i18n="auth.brandFull">لعبة ظامت الموريتانية</h1></div><div class="z-auth-lang"><select data-i18n-aria-label="ui.language" class="z-lang-select" id="authLangSel" data-i18n-title="ui.language">
+<option value="ar" data-i18n="langs.ar"></option>
+<option value="en" data-i18n="langs.en"></option>
+<option value="fr" data-i18n="langs.fr"></option>
+</select><button data-i18n-aria-label="ui.language" class="z-lang-btn" id="authLangBtn" data-i18n-title="ui.language" type="button"><img alt="" aria-hidden="true" src="assets/icons/globe.svg"/></button><div class="z-lang-menu" hidden="" id="authLangMenu"><button data-lang="ar" type="button" data-i18n="langs.ar"></button><button data-lang="en" type="button" data-i18n="langs.en"></button><button data-lang="fr" type="button" data-i18n="langs.fr"></button></div></div></div>
+<div class="z-auth-card">
+<div class="z-auth-msg" id="authMsg"></div>
+
+<section data-auth-view="login">
+<div class="z-auth-titlebar">
+<h2 data-i18n="auth.loginTitle">تسجيل الدخول</h2>
+<button class="btn small secondary google z-auth-google-top" id="btnLoginGoogle" type="button"><img alt="" aria-hidden="true" class="btn-ico" src="assets/icons/google.svg"/><span data-i18n="auth.loginGoogleOption">تسجيل الدخول عبر Google</span></button>
+</div>
+<div class="z-auth-grid">
+<div class="z-auth-row">
+<label data-i18n="auth.email" for="loginEmail">البريد الإلكتروني</label>
+<input autocomplete="email" id="loginEmail" type="email"/>
+</div>
+<div class="z-auth-row">
+<label data-i18n="auth.password" for="loginPass">كلمة المرور</label>
+<input autocomplete="current-password" id="loginPass" type="password"/>
+</div>
+<div class="z-auth-actions">
+<button class="btn primary" data-i18n="auth.loginEmailOption" id="btnLogin">تسجيل الدخول عبر البريد الإلكتروني</button>
+<button class="btn guest" id="btnGuest" type="button"><img alt="" aria-hidden="true" class="btn-ico" src="assets/icons/guest.svg"/><span data-i18n="auth.guestNoLogin">المتابعة دون تسجيل الدخول</span></button>
+</div>
+<div class="z-auth-links">
+<a data-go="register" href="#">
+<span data-i18n="auth.toRegister">إنشاء حساب</span>
+</a>
+<a data-go="recover" href="#">
+<span data-i18n="auth.toRecover">نسيت كلمة المرور؟</span>
+</a>
+</div>
+</div>
+</section>
+
+<section data-auth-view="register" style="display:none">
+<h2 data-i18n="auth.registerTitle">إنشاء حساب</h2>
+
+
+
+<div class="z-auth-grid" id="regEmailForm">
+<div class="z-auth-row">
+<label data-i18n="auth.nickname" for="regNick">الاسم المستعار</label>
+<input id="regNick" maxlength="20" type="text"/>
+</div>
+<div class="z-auth-row">
+<label data-i18n="auth.email" for="regEmail">البريد الإلكتروني</label>
+<input autocomplete="email" id="regEmail" type="email"/>
+</div>
+<div class="z-auth-row">
+<label data-i18n="auth.password" for="regPass">كلمة المرور</label>
+<input autocomplete="new-password" id="regPass" type="password"/>
+</div>
+<div class="z-auth-row">
+<label data-i18n="auth.password2" for="regPass2">تأكيد كلمة المرور</label>
+<input autocomplete="new-password" id="regPass2" type="password"/>
+</div>
+<div class="z-auth-actions" style="flex-wrap:wrap; gap:10px;">
+<button class="btn primary" data-i18n="auth.register" id="btnRegister">تسجيل</button>
+
+<button class="btn secondary" data-go="login" data-i18n="auth.backLogin" type="button">العودة لتسجيل الدخول</button>
+</div>
+</div>
+</section>
+
+<section data-auth-view="recover" style="display:none">
+<h2 data-i18n="auth.recoverTitle">استرجاع كلمة المرور</h2>
+<div class="z-auth-grid">
+<div class="z-auth-row">
+<label data-i18n="auth.email" for="recEmail">البريد الإلكتروني</label>
+<input autocomplete="email" id="recEmail" type="email"/>
+</div>
+<div class="z-auth-actions">
+<button class="btn primary" data-i18n="auth.send" id="btnRecover">إرسال</button>
+<button class="btn secondary" data-go="login" data-i18n="auth.backLogin">العودة لتسجيل الدخول</button>
+</div>
+</div>
+</section>
+
+<section data-auth-view="account" style="display:none">
+<h2 data-i18n="auth.accountTitle">الملف الشخصي</h2>
+<div class="z-profile-grid">
+<div class="z-auth-row">
+<label data-i18n="auth.nickname" for="accNick">الاسم المستعار</label>
+<input id="accNick" maxlength="20" type="text"/>
+</div>
+<div class="z-auth-row">
+<label data-i18n="auth.email" for="accEmail">البريد الإلكتروني</label>
+<input autocomplete="email" id="accEmail" type="email"/>
+</div>
+</div>
+<div class="z-auth-row" style="margin-top:10px">
+<label data-i18n="auth.icon">الأيقونة</label>
+<div class="z-icon-picker" id="iconPicker"></div>
+</div>
+<div class="z-auth-row" style="margin-top:10px">
+<label data-i18n="auth.statsTitle">الإحصائيات</label>
+<div class="z-auth-msg is-show" id="accStats"></div>
+</div>
+<div class="z-auth-actions">
+<button class="btn primary" data-i18n="auth.save" id="btnSaveProfile">حفظ التعديلات</button>
+<button class="btn secondary" data-i18n="auth.startPlay" id="btnStartPlay">ابدأ اللعب</button>
+<button class="btn danger" data-i18n="auth.logout" id="btnLogout">تسجيل الخروج</button>
+</div>
+</section>
+</div>
+<div class="z-auth-foot">
+<a data-i18n="pages.nav.rules" href="pages/rules.html">قواعد اللعبة</a>
+<a data-i18n="pages.nav.about" href="pages/about.html">حول المشروع</a>
+<a data-i18n="pages.nav.privacy" href="pages/privacy.html">الخصوصية</a>
+<a data-i18n="pages.nav.contact" href="pages/contact.html">تواصل معنا</a>
+</div>
+</div>
+<div id="zModalRoot" style="display:none"></div>
+<script>
+    document.addEventListener("DOMContentLoaded", function(){
+      try { if (window.ZAuth && typeof ZAuth.initIndexPage === "function") ZAuth.initIndexPage(); } catch(e){}
+    });
+  </script>
+</body>
+</html>

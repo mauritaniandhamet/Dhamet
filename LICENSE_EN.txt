@@ -1,0 +1,65 @@
+PROPRIETARY LICENSE (ONLINE ACCESS ONLY)
+======================================
+
+Copyright (c) 2026 The Mauritanian Software Lab
+All rights reserved.
+
+This project, including all source code, assets, content, models, and documentation (collectively, the “Software”),
+is proprietary and owned by The Mauritanian Software Lab (the “Licensor”).
+
+1) NOT AN OPEN SOURCE LICENSE
+-----------------------------
+The Software is not open source. No rights are granted to use, copy, modify, merge, publish, distribute, sublicense,
+sell, or otherwise exploit the Software except as explicitly stated in this license.
+
+2) LIMITED PERMISSION: ONLINE ACCESS ONLY (WITH PRIOR AUTHORIZATION)
+--------------------------------------------------------------------
+Subject to the terms below, you may access and use the official website (the deployed online instance) ONLY:
+- via the Licensor’s official online publication (e.g., the website published through GitHub), AND
+- with prior written permission from the Licensor, AND
+- for personal use of the service “as is”.
+
+No right is granted to run, host, deploy, mirror, reproduce, or distribute the Software elsewhere.
+
+3) RESTRICTIONS (NO COPYING / NO DOWNLOADING / NO MODIFICATION / NO DERIVATIVES)
+-------------------------------------------------------------------------------
+Unless you have prior written permission from the Licensor, you may NOT, in whole or in part:
+- copy, download, scrape, or reproduce the Software or any part of it;
+- modify, adapt, translate, or create derivative works;
+- redistribute, publish, sublicense, sell, rent, lease, or commercially exploit;
+- run, deploy, mirror, or host the Software outside the official online publication;
+- reverse engineer, decompile, or attempt to extract source code or models, except to the extent such restriction is
+  prohibited by applicable law.
+
+4) GITHUB PLATFORM PERMISSIONS (AS REQUIRED BY THE GITHUB SERVICE)
+------------------------------------------------------------------
+If the repository is public on GitHub, GitHub’s Terms may allow other GitHub users to view the repository and to use
+GitHub’s “Fork” functionality within the GitHub Service (i.e., creating a copy within GitHub under another
+account/organization) as needed to provide the GitHub service. These permissions are platform-limited within GitHub
+and do not grant broader rights to use, run, deploy, modify, or distribute the Software outside what GitHub enables
+through its functionality and terms.
+
+5) THIRD-PARTY COMPONENTS
+-------------------------
+The Software may include or rely on third-party libraries and services governed by their own licenses and terms.
+Those third-party licenses and terms apply to the corresponding components and services.
+
+6) TERMINATION
+--------------
+This license is effective until terminated. It terminates automatically if you violate any term. Upon termination,
+you must cease all use of the Software.
+
+7) DISCLAIMER OF WARRANTY
+-------------------------
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+8) LIMITATION OF LIABILITY
+--------------------------
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES,
+OR OTHER LIABILITY ARISING FROM OR IN CONNECTION WITH THE SOFTWARE OR THE USE OF THE SOFTWARE.
+
+9) CONTACT
+----------
+For permissions, support, or inquiries, contact the Licensor via the website’s “Contact Us / تواصل معنا” page
+published with the website. No email or phone contact is provided as an official channel for this project.

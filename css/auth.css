@@ -1,0 +1,364 @@
+/* Section: css/auth.css — Authentication and account flows */
+
+.z-auth-page{
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  padding: 0;
+}
+
+
+.z-auth-wrap{
+  width: min(560px, 100%);
+  margin: 0 auto;
+  flex: 1;
+  
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  padding: 24px 12px 86px; 
+}
+
+
+
+@media (max-width: 600px){
+  .z-auth-wrap{
+    justify-content: center;
+    padding-top: 16px;
+  }
+}
+
+
+
+.z-auth-brand{
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.z-auth-brand .brand{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.z-auth-brand img{
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.z-auth-brand h1{
+  font-size: 20px;
+  margin: 0;
+  text-align: center;
+}
+
+.z-auth-lang{
+  display:flex;
+  justify-content: flex-end;
+  align-items:center;
+  gap: 8px;
+  position: relative;
+}
+
+.z-auth-page .z-lang-btn{
+  display:none;
+  border: 2px solid var(--border);
+  background: var(--panel);
+  border-radius: 12px;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  align-items:center;
+  justify-content:center;
+}
+
+.z-auth-page .z-lang-btn img{
+  width: 20px;
+  height: 20px;
+}
+
+.z-auth-page .z-lang-menu{
+  position: absolute;
+  top: 52px;
+  inset-inline-end: 0;
+  min-width: 160px;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 6px;
+  z-index: 50;
+}
+
+.z-auth-page .z-lang-menu[hidden]{ display:none; }
+
+.z-auth-page .z-lang-menu button{
+  width: 100%;
+  text-align: start;
+  border: 2px solid var(--border);
+  background: transparent;
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+@media (max-width: 520px){
+  #authLangSel{ display:none; }
+  .z-auth-page .z-lang-btn{ display:inline-flex; }
+}
+
+
+.z-auth-foot{
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display:flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 12px 10px;
+  background: var(--panel);
+  border-top: 2px solid var(--border);
+  z-index: 40;
+}
+
+.z-auth-foot a{
+  text-decoration:none;
+  opacity: .92;
+  font-size: 13px;
+}
+
+.z-auth-card{
+  margin-top: auto;
+  margin-bottom: auto;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.z-auth-card h2{
+  font-size: 18px;
+  margin: 0 0 10px 0;
+}
+
+
+.z-auth-titlebar{
+  display:flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 10px 0;
+}
+.z-auth-titlebar h2{
+  margin: 0;
+}
+.z-auth-google-top{
+  padding: 8px 10px;
+  font-size: 13px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.z-auth-google-top .btn-ico{
+  width: 16px;
+  height: 16px;
+}
+
+.z-auth-msg{
+  display:none;
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: rgba(255,255,255,.04);
+}
+
+.z-auth-msg.is-show{ display:block; }
+.z-auth-msg.is-error{ border-color: #d33; }
+.z-auth-msg.is-ok{ border-color: #2a7; }
+
+.z-auth-grid{
+  display: grid;
+  gap: 10px;
+}
+
+.z-auth-row{
+  display: grid;
+  gap: 6px;
+}
+
+.z-auth-row label{
+  font-size: 13px;
+  opacity: .9;
+}
+
+.z-auth-row input, .z-auth-row select{
+  width: 100%;
+  padding: 10px 10px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+}
+
+.z-auth-actions{
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.z-auth-actions .btn{
+  width: 100%;
+}
+
+
+#btnGuest{
+  justify-content: center;
+  font-size: 15px;
+  padding: 12px 14px;
+}
+
+.z-auth-links{
+  display:flex;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+  font-size: 13px;
+}
+
+.z-auth-links a{
+  color: var(--text);
+  opacity: .85;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+
+.z-profile-grid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+@media (max-width: 520px){
+  .z-profile-grid{ grid-template-columns: 1fr; }
+}
+
+
+
+.btn.guest{
+  padding: 16px 14px;
+  font-size: 17px;
+  justify-content: center;
+  text-align: center;
+}
+.btn.guest .btn-ico{
+  width: 18px;
+  height: 18px;
+}
+
+
+.z-icon-picker{
+  display:flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.z-icon-choice{
+  display:flex;
+  flex-direction: column;
+  align-items:center;
+  justify-content:center;
+  gap: 6px;
+  width: 78px;
+  padding: 10px 8px;
+  border: 2px solid var(--border);
+  border-radius: 14px;
+  cursor:pointer;
+  user-select:none;
+}
+.z-icon-choice img{
+  width: 36px;
+  height: 36px;
+}
+.z-icon-choice span{
+  font-size: 12px;
+  opacity: .85;
+}
+.z-icon-choice.is-active{
+  border-color: #2a7;
+}
+
+
+.z-modal-root{
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 99999;
+}
+.z-modal-backdrop{
+  position:absolute;
+  inset:0;
+  background: rgba(0,0,0,.55);
+}
+.z-modal{
+  position: relative;
+  width: min(680px, 100%);
+  max-height: min(80vh, 720px);
+  overflow: auto;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+.z-modal-head{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 12px 0 12px;
+}
+.z-modal-title{ font-size: 16px; font-weight: 700; }
+.z-modal-close{
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 22px;
+  cursor:pointer;
+}
+.z-modal-body{ padding: 12px; }
+.z-modal-actions{
+  display:flex;
+  gap: 8px;
+  justify-content: flex-end;
+  padding: 0 12px 12px 12px;
+}
+
+@media (max-width: 560px){
+  .z-auth-page{
+    place-items: start center;
+    padding-top: 16px;
+    min-height: 100vh;
+  }
+  .z-auth-brand{
+    margin-top: 6px;
+    margin-bottom: 10px;
+  }
+  .z-auth-card{
+    margin-top: 8px;
+  }
+}
