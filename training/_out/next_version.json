@@ -1,0 +1,10 @@
+{
+  "new": null,
+  "old_current": null,
+  "old_previous": null,
+  "prev_ptr": null,
+  "used_game_ids": [],
+  "purge_game_ids": [],
+  "note": "Not enough new samples to train",
+  "createdAt": 1770501001847
+}
