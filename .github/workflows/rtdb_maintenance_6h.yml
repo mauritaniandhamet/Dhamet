@@ -1,0 +1,98 @@
+# Section: .github/workflows/rtdb_maintenance_6h.yml — YAML configuration
+name: RTDB Maintenance (6h)
+
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rtdb-maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-22.04
+
+    env:
+      FIREBASE_DATABASE_URL: ${{ secrets.FIREBASE_DATABASE_URL || vars.FIREBASE_DATABASE_URL }}
+      FIREBASE_DB_SECRET: ${{ secrets.FIREBASE_DB_SECRET || vars.FIREBASE_DB_SECRET }}
+      FIREBASE_SERVICE_ACCOUNT_JSON_RAW: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON || vars.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+
+      STALE_PLAYER_MINUTES: "10"
+      STALE_GAME_PRESENCE_MINUTES: "2"
+      PROTECT_GAME_STATUSES: "active,pending"
+
+      PIP_DISABLE_PIP_VERSION_CHECK: "1"
+      PIP_NO_CACHE_DIR: "1"
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Normalize Firebase service account secret (JSON or base64)
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, json, base64, sys
+
+          raw = (os.environ.get("FIREBASE_SERVICE_ACCOUNT_JSON_RAW") or "").strip()
+          if not raw:
+              print("No service account JSON provided (will use DB secret if available).")
+              sys.exit(0)
+
+          try:
+              json.loads(raw)
+              out = raw
+              mode = "raw-json"
+          except Exception:
+              try:
+                  decoded = base64.b64decode(raw).decode("utf-8")
+                  json.loads(decoded)
+                  out = decoded
+                  mode = "base64->json"
+              except Exception:
+                  print("::error::FIREBASE_SERVICE_ACCOUNT_JSON is not valid JSON and not base64-encoded JSON.")
+                  sys.exit(1)
+
+          env_file = os.environ["GITHUB_ENV"]
+          with open(env_file, "a", encoding="utf-8") as f:
+              f.write("FIREBASE_SERVICE_ACCOUNT_JSON<<EOF\n")
+              f.write(out)
+              f.write("\nEOF\n")
+
+          print(f"Service account secret accepted ({mode}).")
+          PY
+
+      - name: Validate Firebase configuration
+        shell: bash
+        run: |
+          if [ -z "${FIREBASE_DATABASE_URL}" ]; then
+            echo "::error::Missing FIREBASE_DATABASE_URL."
+            exit 1
+          fi
+
+          if [ -z "${FIREBASE_SERVICE_ACCOUNT_JSON}" ] && [ -z "${FIREBASE_DB_SECRET}" ]; then
+            echo "::error::Provide FIREBASE_SERVICE_ACCOUNT_JSON (valid JSON) or FIREBASE_DB_SECRET."
+            exit 1
+          fi
+
+          echo "Firebase configuration looks present (values not printed)."
+
+      - name: Install dependencies (lightweight)
+        run: |
+          python -m pip install --upgrade pip
+          pip install --no-cache-dir -r training/requirements-maint.txt
+
+      - name: Run maintenance
+        run: |
+          python training/rtdb_maintenance.py
