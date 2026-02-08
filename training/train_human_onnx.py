@@ -1,21 +1,5 @@
 # Section: training/train_human_onnx.py — Python utility script
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 from __future__ import annotations
 
 import argparse
@@ -837,7 +821,7 @@ def cmd_prepare(repo_root: Path) -> int:
         "createdAt": int(time.time() * 1000),
     }
     _write_json(out_dir / "next_version.json", meta)
-    print(f"[prepare] Trained on {len(dataset)} samples from {len(used_ids)} games -> {cur_onnx_rel}")
+    print(f"[prepare] Trained on {len(dataset)} samples from {len(used_ids)} games -> {new_pointer.get('file')}")
     return 0
 
 
