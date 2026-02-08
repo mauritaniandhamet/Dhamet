@@ -5138,6 +5138,8 @@ try {
       return { uploaded: false, skipped: true };
     }
 
+    // Keep references visible to both try and catch blocks for reliable diagnostics.
+    let u = null;
     try {
       if (!(window.firebase && firebase.database)) {
         _logLearningUpload(false, "no_firebase");
@@ -5146,7 +5148,6 @@ try {
       }
 
       // Require an active Firebase Auth user (anonymous or registered).
-      let u = null;
       try {
         if (firebase.auth) {
           const a = firebase.auth();
@@ -5163,10 +5164,20 @@ try {
       const ref = firebase.database().ref(TRAIN_PATH).push();
       record.id = ref.key;
 
-
-
-// Refresh ID token to ensure RTDB connection has an up-to-date auth token.
-try { if (u && typeof u.getIdToken === "function") await u.getIdToken(true); } catch (_) {}
+	// Refresh ID token to ensure RTDB connection has an up-to-date auth token.
+	try { if (u && typeof u.getIdToken === "function") await u.getIdToken(true); } catch (_) {}
+	try {
+	  console.warn("TrainRecorder pre-upload:", {
+	    uid: u && u.uid ? String(u.uid) : null,
+	    isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : null,
+	    deepViolation: deepViolation || null,
+	    mode: record && record.mode ? String(record.mode) : null,
+	    endReason: record && record.endReason ? String(record.endReason) : null,
+	    stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
+	    samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
+	    id: record && record.id ? String(record.id) : null
+	  });
+	} catch (_) {}
 
 // If the payload fails the local mirror of RTDB validation, do not attempt upload.
 if (deepViolation) {
@@ -5181,20 +5192,28 @@ if (deepViolation) {
 
       resetGame();
       return { uploaded: true, id: record.id };
-    } catch (e) {
-      console.warn("TrainRecorder upload failed:", e);
-console.warn("TrainRecorder upload context:", {
-  uid: (u && u.uid) ? u.uid : null,
-  isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : null,
-  deepViolation: deepViolation || null,
-  stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
-  samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null
-});
+	    } catch (e) {
+	      const r = _dbErrorReason(e) || "upload_failed";
+	      console.warn("TrainRecorder upload failed:", e);
+	      try {
+	        // Re-resolve current user in case auth state changed between try/catch blocks.
+	        let u2 = null;
+	        try { u2 = (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser : null; } catch(_) {}
+	        console.warn("TrainRecorder upload context:", {
+	          reason: r,
+	          uid: (u && u.uid) ? String(u.uid) : ((u2 && u2.uid) ? String(u2.uid) : null),
+	          isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : ((u2 && typeof u2.isAnonymous === "boolean") ? u2.isAnonymous : null),
+	          deepViolation: deepViolation || null,
+	          stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
+	          samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
+	          id: (record && record.id) ? String(record.id) : null,
+	        });
+	      } catch (_) {}
 
-      _logLearningUpload(false, _dbErrorReason(e) || "upload_failed");
-      resetGame();
-      return { uploaded: false, skipped: false, reason: "upload_failed" };
-    }
+	      _logLearningUpload(false, r);
+	      resetGame();
+	      return { uploaded: false, skipped: false, reason: r };
+	    }
   }
 
   
