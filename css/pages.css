@@ -1533,3 +1533,5 @@ html.dark .z-row{ background: rgba(255,255,255,0.04); }
 @media (max-width: 600px){
   .z-dash-split{ grid-template-columns: 1fr; }
 }
+
+body.mode-pvp #btnEndLocalMatch{display:none!important}
