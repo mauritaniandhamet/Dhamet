@@ -62,36 +62,58 @@
 
   <script src="../js/i18n.js"></script>
 <style>
-    
-    .z-contact-form-embed { width: 100%; overflow-x: hidden; }
+  /* Contact form sizing: responsive + overrides */
+  body.z-page-body .z-contact-form-embed{
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    overflow-x: hidden !important;
+  }
 
-    
-    .z-contact-form-embed iframe {
-      width: 1px;
-      min-width: 100%;
-      max-width: 100%;
-      border: 0;
-      display: block;
-      overflow: hidden;
-      height: var(--z-gform-height, 1700px);
+  /* 80% on large screens, 70% on very large */
+  @media (min-width: 992px){
+    body.z-page-body .z-contact-form-embed{
+      width: 80% !important;
+      max-width: 1100px !important;
     }
-  </style>
+  }
+  @media (min-width: 1400px){
+    body.z-page-body .z-contact-form-embed{
+      width: 70% !important;
+      max-width: 1200px !important;
+    }
+  }
+
+  body.z-page-body .z-contact-form-embed iframe{
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+    border: 0 !important;
+    display: block !important;
+    /* Keep page compact; allow scrolling inside iframe when needed */
+    overflow: auto !important;
+    height: min(85vh, 900px) !important;
+    height: min(85dvh, 900px) !important;
+  }
+
+  /* Remove extra spacing below the embed (if any) */
+  body.z-page-body .z-clear{
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    clear: both !important;
+  }
+
+  /* Hide elements below the form on this page */
+  body.z-page-body .z-cta,
+  body.z-page-body .z-ad-bottom-wrap{
+    display: none !important;
+  }
+</style>
+
 
   <script>
-    
-    (function () {
-      function setGFormHeight() {
-        var w = window.innerWidth || document.documentElement.clientWidth || 0;
-        var h = 1700;           
-        if (w < 420) h = 2700;  
-        else if (w < 768) h = 2300; 
-        document.documentElement.style.setProperty('--z-gform-height', h + 'px');
-      }
-      window.addEventListener('resize', setGFormHeight, { passive: true });
-      setGFormHeight();
-    })();
-  </script>
-<script>
   window.dataLayer = window.dataLayer || [];
   function gtag(){dataLayer.push(arguments);}
   gtag('js', new Date());
@@ -121,11 +143,11 @@
           title="نموذج التواصل"
           src="https://docs.google.com/forms/d/e/1FAIpQLSfFn9JPeCVirHjT2cuQgZOvgQVbRTnWpgaUarGpbEcW7XOD6w/viewform?embedded=true"
           width="100%"
-          height="600"
+          height="900"
           frameborder="0"
           marginheight="0"
           marginwidth="0"
-          scrolling="no"
+          scrolling="auto"
           referrerpolicy="no-referrer-when-downgrade"
         ><span data-i18n="pages.contact.loading">Loading…</span></iframe>
       </div>
