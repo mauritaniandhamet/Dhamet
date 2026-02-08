@@ -5175,7 +5175,25 @@ try {
       }
 
 
-      const ref = firebase.database().ref(TRAIN_PATH).push();
+      // Ensure auth + database come from the same Firebase app instance.
+      let _app = null;
+      let _auth = null;
+      let _db = null;
+      let _appName = null;
+      let _dbUrl = null;
+      try { _app = (firebase.apps && firebase.apps.length) ? firebase.app() : null; } catch (_) { _app = null; }
+      try { _auth = _app ? firebase.auth(_app) : firebase.auth(); } catch (_) { _auth = null; }
+      try { _db = _app ? firebase.database(_app) : firebase.database(); } catch (_) { _db = null; }
+      try {
+        const _a = _app || ((firebase.apps && firebase.apps.length) ? firebase.app() : null);
+        if (_a) {
+          _appName = (typeof _a.name === "string") ? _a.name : null;
+          _dbUrl = (_a.options && _a.options.databaseURL) ? String(_a.options.databaseURL) : null;
+        }
+      } catch (_) {}
+      if (!_db) _db = firebase.database();
+
+      const ref = _db.ref(TRAIN_PATH).push();
       record.id = ref.key;
 
 	// Refresh ID token to ensure RTDB connection has an up-to-date auth token.
@@ -5184,6 +5202,8 @@ try {
 	try {
 	  const __pre = {
 	    uid: u && u.uid ? String(u.uid) : null,
+	    appName: _appName,
+	    dbUrl: _dbUrl,
 	    isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : null,
 	    tokenRefreshed: _tokenRefreshed,
 	    deepViolation: deepViolation || null,
@@ -5216,7 +5236,28 @@ if (deepViolation) {
         return { uploaded: false, skipped: true, reason: "no_data" };
       }
 
-      await ref.set(record);
+      // Upload to RTDB. If we get PERMISSION_DENIED, force a DB reconnect and retry once.
+      try {
+        await ref.set(record);
+      } catch (e1) {
+        const code1 = (e1 && (e1.code || e1.name)) ? String(e1.code || e1.name).toLowerCase() : "";
+        const msg1 = (e1 && e1.message) ? String(e1.message).toLowerCase() : "";
+        const isPerm = code1.includes("permission") || msg1.includes("permission");
+        if (isPerm && _db && typeof _db.goOffline === "function" && typeof _db.goOnline === "function") {
+          try {
+            console.warn("TrainRecorder retry after permission_denied: forcing DB reconnect");
+            _db.goOffline();
+            _db.goOnline();
+            try { if (u && typeof u.getIdToken === "function") { await u.getIdToken(true); } } catch (_) {}
+            await ref.set(record);
+          } catch (e2) {
+            throw e2;
+          }
+        } else {
+          throw e1;
+        }
+      }
+
 
       _logLearningUpload(true);
 
