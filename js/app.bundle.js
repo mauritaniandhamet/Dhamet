@@ -1,6 +1,18 @@
 /* Section: js/app.bundle.js — Bundled application scripts */
 
 
+
+
+
+
+
+
+
+
+
+
+
+
 (function(){
   const out = [
     "assets/icons/users/user.svg",
@@ -999,7 +1011,7 @@ const btnRegister = qs("#btnRegister", root);
         }
 
         try { unsub = auth.onAuthStateChanged(function(u){ if (u) finish(u); }); } catch(_) {}
-        setTimeout(function(){ finish(auth ? auth.currentUser : null); }, Math.max(500, timeoutMs || 2500));
+        setTimeout(function(){ finish(auth ? auth.currentUser : null); }, Math.max(500, timeoutMs || 8000));
       }catch(_){
         resolve(null);
       }
@@ -1011,7 +1023,7 @@ const btnRegister = qs("#btnRegister", root);
       const need = isProtected();
       if (!need) return;
 
-      const u = await waitForAuthUser(9500);
+      const u = await waitForAuthUser(8000);
       if (!u || !u.uid) { toIndex(); return; }
       if (need === "registered" && u.isAnonymous) { toIndex(); return; }
 
