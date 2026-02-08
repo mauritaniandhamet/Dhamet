@@ -85,13 +85,39 @@
     return String(n);
   }
 
-  function ensureRegisteredSession(){
+  
+  function waitForAuthUser(timeoutMs){
+    return new Promise(function(resolve){
+      try{
+        try { if (window.ZAuth && typeof ZAuth.initFirebase === "function") ZAuth.initFirebase(); } catch (_) {}
+        if (!(window.firebase && firebase.auth)) return resolve(null);
+        const auth = firebase.auth();
+        if (auth && auth.currentUser) return resolve(auth.currentUser);
+
+        let done = false;
+        let unsub = null;
+        function finish(u){
+          if (done) return;
+          done = true;
+          try { if (unsub) unsub(); } catch(_) {}
+          resolve(u || (auth ? auth.currentUser : null) || null);
+        }
+        try { unsub = auth.onAuthStateChanged(function(u){ if (u) finish(u); }); } catch(_) {}
+        setTimeout(function(){ finish(auth ? auth.currentUser : null); }, Math.max(500, timeoutMs || 8000));
+      } catch(_) {
+        resolve(null);
+      }
+    });
+  }
+
+function ensureRegisteredSession(userOverride){
     // Session is NOT trusted alone; require an active non-anonymous Firebase Auth user.
     try { if (window.ZAuth && typeof ZAuth.initFirebase === "function") ZAuth.initFirebase(); } catch (_) {}
 
     let u = null;
     try {
-      if (window.firebase && firebase.auth) u = firebase.auth().currentUser;
+      if (userOverride) u = userOverride;
+      else if (window.firebase && firebase.auth) u = firebase.auth().currentUser;
     } catch (_) {}
     if (!u || !u.uid || u.isAnonymous) return null;
 
@@ -579,10 +605,12 @@ async function load(uid){
     if (bDel) bDel.addEventListener("click", function(){ openDeleteAccount(session); });
   }
 
-  function init(){
-    const s = ensureRegisteredSession();
-    if (!s) { location.href = "../index.html"; return; }
+  async function init(){
     try { if (window.ZAuth && typeof ZAuth.initFirebase === "function") ZAuth.initFirebase(); } catch (_) {}
+    const user = await waitForAuthUser(8000);
+    if (!user || !user.uid || user.isAnonymous) { location.href = "../index.html"; return; }
+    const s = ensureRegisteredSession(user);
+    if (!s) { location.href = "../index.html"; return; }
     bind(s);
     load(s.uid);
 
@@ -590,6 +618,7 @@ async function load(uid){
     setInterval(function(){ try { load(s.uid); } catch(_){} }, 15000);
   }
 
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
-  else init();
+  function initWrap(){ try { init().catch(function(){ try{ location.href = "../index.html"; }catch(_){}; }); } catch(_) { try{ location.href = "../index.html"; }catch(_){} } }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", initWrap);
+  else initWrap();
 })();
