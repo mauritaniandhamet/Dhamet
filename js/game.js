@@ -1009,11 +1009,6 @@ function classifyCapture(fromIdx, toIdx) {
 }
 
 function applyMove(fromIdx, toIdx, isCapture, jumpedIdx) {
-  try {
-    if (typeof TrainRecorder !== "undefined" && TrainRecorder && typeof TrainRecorder.beginMoveBoundary === "function") {
-      TrainRecorder.beginMoveBoundary({ type: "move", actor: Game.player, fromIdx, toIdx, cap: !!isCapture });
-    }
-  } catch {}
   pushHistoryBeforeMove(fromIdx, toIdx);
 
   const [r1, c1] = idxToRC(fromIdx);
@@ -4323,13 +4318,9 @@ const TrainRecorder = (() => {
     if (!Array.isArray(g.samples)) g.samples = [];
     if (!Array.isArray(g.steps)) g.steps = [];
     if (!Array.isArray(g._moveBoundaries)) g._moveBoundaries = [];
-    if (!Array.isArray(g._pendingSamples)) g._pendingSamples = [];
-    if (!Array.isArray(g._pendingSteps)) g._pendingSteps = [];
     g._moveBoundaries.push({
       samplesLen: g.samples.length | 0,
       stepsLen: g.steps.length | 0,
-      pendingSamplesLen: g._pendingSamples.length | 0,
-      pendingStepsLen: g._pendingSteps.length | 0,
       meta: meta || null,
     });
   }
@@ -4343,7 +4334,7 @@ const TrainRecorder = (() => {
     const g = ensureGame();
     if (!g || !Array.isArray(g._moveBoundaries) || !g._moveBoundaries.length) return false;
 
-    
+    // If a matcher is provided, roll back only if the last boundary matches.
     if (match && typeof match === "object") {
       const last = g._moveBoundaries[g._moveBoundaries.length - 1];
       const m = last && last.meta ? last.meta : null;
@@ -4359,12 +4350,6 @@ const TrainRecorder = (() => {
     try {
       if (Array.isArray(g.samples)) g.samples.length = Math.max(0, b.samplesLen | 0);
       if (Array.isArray(g.steps)) g.steps.length = Math.max(0, b.stepsLen | 0);
-      if (Array.isArray(g._pendingSamples) && typeof b.pendingSamplesLen === "number") {
-        g._pendingSamples.length = Math.max(0, b.pendingSamplesLen | 0);
-      }
-      if (Array.isArray(g._pendingSteps) && typeof b.pendingStepsLen === "number") {
-        g._pendingSteps.length = Math.max(0, b.pendingStepsLen | 0);
-      }
     } catch {}
     return true;
   }
@@ -4509,83 +4494,16 @@ const TrainRecorder = (() => {
 
   function isAcceptableForUpload(record) {
     if (!record) return false;
-
-    // Must have enough samples over a minimum duration, and a sane sampling rate.
-    if (!Array.isArray(record.samples) || record.samples.length < MIN_SAMPLES) return false;
+    if (!record.samples || record.samples.length < MIN_SAMPLES) return false;
     if (!Number.isFinite(record.durationMs) || record.durationMs < MIN_DURATION_MS) return false;
-
-    // Steps and samples are expected to be aligned 1:1 in this app.
-    if (!Array.isArray(record.steps) || record.steps.length !== record.samples.length) return false;
 
     const sps = record.samples.length / Math.max(1, record.durationMs / 1000);
     if (sps > MAX_DECISIONS_PER_SEC) return false;
 
-    // Skip obvious non-natural endings.
+    
     if (record.endReason === "disconnect" || record.endReason === "abort" || record.endReason === "cancel") {
       return false;
     }
-
-    // Require a minimum amount of real coordinate moves to avoid junk uploads.
-    // (Soufla and boundary markers are allowed, but cannot dominate the record.)
-    const reRC = /^(?:[0-9]|1[0-9])\.(?:[0-9]|1[0-9])$/;
-    let coordMoves = 0;
-
-    let prev = null;
-    let run = 0;
-    let maxRun = 0;
-    const unique = new Set();
-
-    for (let i = 0; i < record.steps.length; i++) {
-      const st = record.steps[i];
-      if (!Array.isArray(st) || st.length < 2) return false;
-
-      const f = String(st[0] ?? "");
-      const t = String(st[1] ?? "");
-      const key = f + "->" + t;
-      unique.add(key);
-
-      if (prev === key) run++;
-      else { prev = key; run = 1; }
-      if (run > maxRun) maxRun = run;
-
-      if (reRC.test(f) && reRC.test(t) && f !== t) coordMoves++;
-    }
-
-    const minCoord = Math.min(6, Math.max(2, Math.floor(record.steps.length * 0.25)));
-    if (coordMoves < minCoord) return false;
-
-    // Reject extreme repetition (common in fabricated spam).
-    if (maxRun >= Math.max(10, Math.floor(record.steps.length * 0.5))) return false;
-
-    // Reject records with almost no variety of moves.
-    if (unique.size < Math.max(3, Math.floor(record.steps.length * 0.1))) return false;
-
-    // Cross-check ending against the actual board state when possible, without changing game logic.
-    try {
-      let top = 0, bot = 0, tKings = 0, bKings = 0;
-      for (let r = 0; r < BOARD_N; r++) {
-        for (let c = 0; c < BOARD_N; c++) {
-          const v = Game.board[r][c];
-          if (v > 0) {
-            top++;
-            if (Math.abs(v) === 2) tKings++;
-          } else if (v < 0) {
-            bot++;
-            if (Math.abs(v) === 2) bKings++;
-          }
-        }
-      }
-
-      if (record.endReason === "natural_win") {
-        if (!(top === 0 || bot === 0)) return false;
-        if (record.winner === TOP && bot !== 0) return false;
-        if (record.winner === BOT && top !== 0) return false;
-      } else if (record.endReason === "draw") {
-        if (!(top === 1 && bot === 1 && tKings === 1 && bKings === 1)) return false;
-        if (record.winner != null) return false;
-      }
-    } catch (_) {}
-
     return true;
   }
 
@@ -4952,33 +4870,8 @@ const TrainRecorder = (() => {
     
     
     
-    let statsRes = null;
-    try {
-      if (record.endReason !== "disconnect" && record.endReason !== "abort" && record.endReason !== "cancel") {
-        statsRes = await _recordMatchLogAndStats(record);
-      } else {
-        statsRes = { ok: false, reason: `skipped_${record.endReason}` };
-      }
-    } catch (e) {
-      statsRes = { ok: false, reason: _dbErrorReason(e) || "unknown" };
-    }
-
     
-    try {
-      if (window.UI && typeof UI.log === "function") {
-        const okMsg = t("log.results.savedOk");
-        const failMsg = t("log.results.savedFail");
-        const skipMsg = t("log.results.skipped");
-        if (statsRes && statsRes.ok) UI.log(okMsg);
-        else if (statsRes && typeof statsRes.reason === "string" && statsRes.reason.startsWith("skipped_")) UI.log(`${skipMsg} (${statsRes.reason})`);
-        else if (statsRes && statsRes.reason) UI.log(`${failMsg} (${statsRes.reason})`);
-        else if (statsRes === null) UI.log(`${skipMsg} (no_attempt)`);
-        else UI.log(failMsg);
-      }
-    } catch (_) {}
-
-    
-    const _logLearningUpload = (ok, reason = null) => {
+const _logLearningUpload = (ok, reason = null) => {
       try {
         if (!(window.UI && typeof UI.log === "function")) return;
         const okMsg = t("log.learning.sentOk");
