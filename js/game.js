@@ -4481,6 +4481,212 @@ const TrainRecorder = (() => {
     g._inForceRewrite = false;
   }
 
+  function _parseRC(str) {
+    try {
+      if (typeof str !== "string") return null;
+      const m = str.match(/^([0-8])\.([0-8])$/);
+      if (!m) return null;
+      const r = m[1] | 0;
+      const c = m[2] | 0;
+      return r * BOARD_N + c;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _decodePackedBoard(b64) {
+    try {
+      if (typeof b64 !== "string" || !b64) return null;
+      if (typeof atob !== "function") return null;
+      const bin = atob(b64);
+      if (!bin || bin.length !== N_CELLS) return null;
+      const u8 = new Uint8Array(N_CELLS);
+      for (let i = 0; i < N_CELLS; i++) u8[i] = bin.charCodeAt(i) & 255;
+      return new Int8Array(u8.buffer);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function _countsFromPackedBoard(packed) {
+    const out = { top: 0, bot: 0, tKings: 0, bKings: 0 };
+    try {
+      if (!packed || packed.length !== N_CELLS) return out;
+      for (let i = 0; i < N_CELLS; i++) {
+        const v = packed[i] | 0;
+        if (v > 0) {
+          out.top++;
+          if (Math.abs(v) === 2) out.tKings++;
+        } else if (v < 0) {
+          out.bot++;
+          if (Math.abs(v) === 2) out.bKings++;
+        }
+      }
+    } catch (_) {}
+    return out;
+  }
+
+  function _finalCountsFromGameBoard() {
+    const out = { top: 0, bot: 0, tKings: 0, bKings: 0 };
+    try {
+      if (!Game || !Game.board) return out;
+      for (let r = 0; r < BOARD_N; r++) {
+        for (let c = 0; c < BOARD_N; c++) {
+          const v = Game.board[r][c] | 0;
+          if (v > 0) {
+            out.top++;
+            if (Math.abs(v) === 2) out.tKings++;
+          } else if (v < 0) {
+            out.bot++;
+            if (Math.abs(v) === 2) out.bKings++;
+          }
+        }
+      }
+    } catch (_) {}
+    return out;
+  }
+
+  function _isOutcomeConsistent(record, finalCounts) {
+    try {
+      const fc = finalCounts || { top: 0, bot: 0, tKings: 0, bKings: 0 };
+      const endReason = record && record.endReason ? String(record.endReason) : "";
+      const winner = record ? record.winner : null;
+
+      if (endReason === "draw") {
+        if (winner !== null) return false;
+        // Game's native draw condition in this codebase: only two kings remain (one per side).
+        if (!(fc.top === 1 && fc.bot === 1 && fc.tKings === 1 && fc.bKings === 1)) return false;
+        return true;
+      }
+
+      if (endReason === "natural_win") {
+        if (!(winner === TOP || winner === BOT)) return false;
+        if (winner === TOP) {
+          // BOT must have no pieces at game end (as per checkEndConditions()).
+          if (fc.bot !== 0) return false;
+        } else {
+          if (fc.top !== 0) return false;
+        }
+        return true;
+      }
+
+      // Reject any other end reasons for training upload.
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function _sampleIndices(n, maxChecks = 40) {
+    const out = [];
+    try {
+      n = n | 0;
+      maxChecks = Math.max(0, maxChecks | 0);
+      if (n <= 0) return out;
+      if (n <= maxChecks || maxChecks <= 0) {
+        for (let i = 0; i < n; i++) out.push(i);
+        return out;
+      }
+      const set = new Set();
+      const head = Math.min(10, n);
+      const tail = Math.min(10, n);
+      for (let i = 0; i < head; i++) set.add(i);
+      for (let i = n - tail; i < n; i++) if (i >= 0) set.add(i);
+      const mid = Math.max(0, maxChecks - set.size);
+      for (let k = 1; k <= mid; k++) {
+        const i = Math.floor((k * (n - 1)) / (mid + 1));
+        set.add(i);
+      }
+      for (const i of set) out.push(i);
+      out.sort((a, b) => a - b);
+    } catch (_) {}
+    return out;
+  }
+
+  function _seemsRealMatchSequence(record) {
+    try {
+      if (!record) return false;
+      if (!Array.isArray(record.samples) || !Array.isArray(record.steps)) return false;
+
+      const nS = record.samples.length | 0;
+      const nT = record.steps.length | 0;
+
+      // This codebase records one step per sample.
+      if (nS <= 0 || nS !== nT) return false;
+
+      let realSteps = 0;
+      let badSteps = 0;
+
+      // Basic step sanity + count "real" (r.c -> r.c) steps.
+      for (let i = 0; i < nT; i++) {
+        const st = record.steps[i];
+        if (!Array.isArray(st) || st.length !== 2) {
+          badSteps++;
+          continue;
+        }
+        const f = st[0];
+        const t = st[1];
+        const fi = _parseRC(f);
+        const ti = _parseRC(t);
+        if (fi == null || ti == null || fi === ti) continue;
+        realSteps++;
+      }
+
+      // Require that most steps are real coordinate moves.
+      const realFrac = realSteps / Math.max(1, nT);
+      if (realFrac < 0.7) return false;
+      if (badSteps > 0) return false;
+
+      // Validate timeline and a small subset of states vs. moves.
+      const idxs = _sampleIndices(nS, 40);
+      let lastT = -1;
+
+      for (const i of idxs) {
+        const s = record.samples[i];
+        const st = record.steps[i];
+
+        if (!s || !s.s) return false;
+
+        const t = s.t;
+        if (!Number.isFinite(t) || t < 0) return false;
+        if (lastT >= 0 && t + 500 < lastT) return false; // allow small clock jitter only
+        lastT = t;
+
+        // Basic action/actor sanity
+        if (!Number.isFinite(s.a)) return false;
+        const actor = s.actor;
+        if (!(actor === TOP || actor === BOT)) return false;
+
+        // Skip non-coordinate steps (soufla markers etc.)
+        const fi = _parseRC(Array.isArray(st) ? st[0] : null);
+        const ti = _parseRC(Array.isArray(st) ? st[1] : null);
+        if (fi == null || ti == null || fi === ti) continue;
+
+        const packed = _decodePackedBoard(s.s.b);
+        if (!packed) return false;
+
+        const fromV = packed[fi] | 0;
+        const toV = packed[ti] | 0;
+
+        // From-square must contain actor piece; to-square must be empty in pre-move snapshot.
+        if (!fromV) return false;
+        if (pieceOwner(fromV) !== actor) return false;
+        if (toV !== 0) return false;
+      }
+
+      // Ensure timeline is consistent with duration (loose tolerance).
+      const d = record.durationMs;
+      if (Number.isFinite(d) && d >= 0) {
+        const lastSample = record.samples[nS - 1];
+        if (lastSample && Number.isFinite(lastSample.t) && lastSample.t > d + 2000) return false;
+      }
+
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function isAcceptableForUpload(record) {
     if (!record) return false;
     if (!record.samples || record.samples.length < MIN_SAMPLES) return false;
@@ -4489,10 +4695,17 @@ const TrainRecorder = (() => {
     const sps = record.samples.length / Math.max(1, record.durationMs / 1000);
     if (sps > MAX_DECISIONS_PER_SEC) return false;
 
-    
+    // Reject non-natural terminations for training.
     if (record.endReason === "disconnect" || record.endReason === "abort" || record.endReason === "cancel") {
       return false;
     }
+
+    // Additional "guardian" checks to reject fabricated / inconsistent records.
+    if (!_seemsRealMatchSequence(record)) return false;
+
+    const finalCounts = _finalCountsFromGameBoard();
+    if (!_isOutcomeConsistent(record, finalCounts)) return false;
+
     return true;
   }
 
@@ -4834,95 +5047,6 @@ const TrainRecorder = (() => {
     return { ok: true };
   }
 
-
-  // Local mirror of the RTDB rules for trainGamesV3 writes.
-  // Used only to pinpoint which validate clause is rejecting the record when the server returns PERMISSION_DENIED.
-  function _localRulesCheckTrainRecord(record) {
-    const fail = (path, reason) => ({ ok: false, path: String(path || ""), reason: String(reason || "") });
-    const ok = () => ({ ok: true });
-
-    const isNum = (v) => (typeof v === "number" && Number.isFinite(v));
-    const isBool = (v) => (typeof v === "boolean");
-    const isStr = (v) => (typeof v === "string");
-    const isObj = (v) => (!!v && typeof v === "object" && !Array.isArray(v));
-
-    if (!record || typeof record !== "object") return fail("/", "record_not_object");
-
-    // $gameId validate (core)
-    if (!isNum(record.schema) || record.schema !== 3) return fail("schema", "schema_must_be_3_number");
-    if (!isStr(record.mode) || record.mode.length > 24) return fail("mode", "mode_string_len");
-    if (!isNum(record.startedAt)) return fail("startedAt", "startedAt_number");
-    if (!isNum(record.endedAt)) return fail("endedAt", "endedAt_number");
-    if (!isNum(record.durationMs)) return fail("durationMs", "durationMs_number");
-    if (!isStr(record.endReason) || record.endReason.length > 24) return fail("endReason", "endReason_string_len");
-    if (!isBool(record.processed)) return fail("processed", "processed_boolean");
-    if (!isNum(record.purgeAt)) return fail("purgeAt", "purgeAt_number");
-
-    if (record.winner != null && !isNum(record.winner)) return fail("winner", "winner_number_or_missing");
-    if (record.id != null && !isStr(record.id)) return fail("id", "id_string_or_missing");
-
-    // Size caps (steps/12000 and samples/60000 must NOT exist)
-    if (!Array.isArray(record.steps)) return fail("steps", "steps_must_be_array");
-    if (!Array.isArray(record.samples)) return fail("samples", "samples_must_be_array");
-
-    if (record.steps.length > 12000) return fail("steps/12000", "steps_too_long");
-    if (record.samples.length > 60000) return fail("samples/60000", "samples_too_long");
-
-    // steps/$i validate
-    for (let i = 0; i < record.steps.length; i++) {
-      const st = record.steps[i];
-      // If an element is null/undefined, RTDB will treat it as missing; skip strict checks.
-      if (st == null) continue;
-
-      if (!Array.isArray(st)) return fail(`steps/${i}`, "step_must_be_array");
-      if (!(st.length === 2)) return fail(`steps/${i}`, "step_must_have_exactly_2_items");
-      if (!isStr(st[0]) || st[0].length > 8) return fail(`steps/${i}/0`, "step0_string_len");
-      if (!isStr(st[1]) || st[1].length > 8) return fail(`steps/${i}/1`, "step1_string_len");
-    }
-
-    // samples/$i validate
-    for (let i = 0; i < record.samples.length; i++) {
-      const sm = record.samples[i];
-      if (sm == null) continue;
-
-      if (!isObj(sm)) return fail(`samples/${i}`, "sample_must_be_object");
-      // required fields
-      if (!("s" in sm)) return fail(`samples/${i}/s`, "missing_s");
-      if (!("a" in sm)) return fail(`samples/${i}/a`, "missing_a");
-      if (!("actor" in sm)) return fail(`samples/${i}/actor`, "missing_actor");
-      if (!("cap" in sm)) return fail(`samples/${i}/cap`, "missing_cap");
-      if (!("crown" in sm)) return fail(`samples/${i}/crown`, "missing_crown");
-      if (!("trap" in sm)) return fail(`samples/${i}/trap`, "missing_trap");
-      if (!("t" in sm)) return fail(`samples/${i}/t`, "missing_t");
-
-      if (!isNum(sm.a)) return fail(`samples/${i}/a`, "a_number");
-      if (!isNum(sm.actor)) return fail(`samples/${i}/actor`, "actor_number");
-      if (!isNum(sm.cap)) return fail(`samples/${i}/cap`, "cap_number");
-      if (!isNum(sm.crown)) return fail(`samples/${i}/crown`, "crown_number");
-      if (!isNum(sm.trap)) return fail(`samples/${i}/trap`, "trap_number");
-      if (!isNum(sm.t)) return fail(`samples/${i}/t`, "t_number");
-
-      if (!isObj(sm.s)) return fail(`samples/${i}/s`, "s_must_be_object");
-      if (!("b" in sm.s)) return fail(`samples/${i}/s/b`, "missing_b");
-      if (!("p" in sm.s)) return fail(`samples/${i}/s/p`, "missing_p");
-      if (!("ic" in sm.s)) return fail(`samples/${i}/s/ic`, "missing_ic");
-      if (!("cp" in sm.s)) return fail(`samples/${i}/s/cp`, "missing_cp");
-
-      if (!isStr(sm.s.b) || sm.s.b.length > 256) return fail(`samples/${i}/s/b`, "b_string_len");
-      if (!isNum(sm.s.p)) return fail(`samples/${i}/s/p`, "p_number");
-      if (!isNum(sm.s.ic)) return fail(`samples/${i}/s/ic`, "ic_number");
-      if (!isNum(sm.s.cp)) return fail(`samples/${i}/s/cp`, "cp_number");
-
-      // optional numeric fields (if present, must be number)
-      const optNums = ["sf","sfFlags","sfDecision","Lmax","Ls","capturesDone","sfStartedFrom"];
-      for (const k of optNums) {
-        if (k in sm && sm[k] != null && !isNum(sm[k])) return fail(`samples/${i}/${k}`, `${k}_must_be_number_or_missing`);
-      }
-    }
-
-    return ok();
-  }
-
   async function finalizeAndUpload({ winner = null, endReason = null } = {}) {
     const g = ensureGame();
     const endedAt = nowMs();
@@ -5010,12 +5134,6 @@ const TrainRecorder = (() => {
       return { uploaded: true, id: record.id };
     } catch (e) {
       console.warn("TrainRecorder upload failed:", e);
-      try {
-        const local = _localRulesCheckTrainRecord(record);
-        if (local && local.ok === false) console.warn("TrainRecorder local RTDB validate FAIL:", local);
-        else console.warn("TrainRecorder local RTDB validate OK (but server denied)");
-      } catch (_) {}
-
       _logLearningUpload(false, _dbErrorReason(e) || "upload_failed");
       resetGame();
       return { uploaded: false, skipped: false, reason: "upload_failed" };
