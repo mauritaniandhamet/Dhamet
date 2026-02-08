@@ -1535,3 +1535,5 @@ html.dark .z-row{ background: rgba(255,255,255,0.04); }
 }
 
 body.mode-pvp #btnEndLocalMatch{display:none!important}
+@media (max-width:768px){.side>#btnEndLocalMatch{order:3!important}}
+
