@@ -4560,7 +4560,116 @@ const TrainRecorder = (() => {
     return out;
   }
 
-  function _trainRecordFirstRuleViolation(rec){
+  
+function _trainRecordFirstDeepRuleViolation(rec){
+  try{
+    if (!rec || typeof rec !== "object") return "root_not_object";
+    const req = ["schema","mode","startedAt","endedAt","durationMs","endReason","steps","samples","processed","purgeAt"];
+    for (const k of req){ if (!(k in rec)) return "missing_"+k; }
+
+    // Top-level constraints
+    if (typeof rec.schema !== "number" || !Number.isFinite(rec.schema) || rec.schema !== 3) return "schema";
+    if (typeof rec.mode !== "string" || rec.mode.length > 24) return "mode";
+    if (typeof rec.startedAt !== "number" || !Number.isFinite(rec.startedAt)) return "startedAt";
+    if (typeof rec.endedAt !== "number" || !Number.isFinite(rec.endedAt)) return "endedAt";
+    if (typeof rec.durationMs !== "number" || !Number.isFinite(rec.durationMs)) return "durationMs";
+    if (typeof rec.endReason !== "string" || rec.endReason.length > 24) return "endReason";
+    if (typeof rec.processed !== "boolean") return "processed";
+    if (typeof rec.purgeAt !== "number" || !Number.isFinite(rec.purgeAt)) return "purgeAt";
+
+    if (Object.prototype.hasOwnProperty.call(rec, "winner") && rec.winner != null) {
+      if (typeof rec.winner !== "number" || !Number.isFinite(rec.winner)) return "winner";
+    }
+    if (Object.prototype.hasOwnProperty.call(rec, "id") && rec.id != null) {
+      if (typeof rec.id !== "string") return "id";
+    }
+
+    // steps validation (max index 11999, each item [string<=8, string<=8])
+    const steps = rec.steps;
+    if (!Array.isArray(steps)) return "steps_not_array";
+    if (steps.length > 12000) return "steps_too_many";
+    for (let i=0;i<steps.length;i++){
+      const idxStr = String(i);
+      // mirrors rules regex
+      if (!/^(?:0|[1-9][0-9]{0,3}|1[01][0-9]{3})$/.test(idxStr)) return "steps_bad_index_"+idxStr;
+      const st = steps[i];
+      if (!Array.isArray(st) || st.length < 2) return "steps["+idxStr+"]_bad_tuple";
+      if (st.length > 2) return "steps["+idxStr+"]_extra_fields";
+      if (typeof st[0] !== "string" || typeof st[1] !== "string") return "steps["+idxStr+"]_not_strings";
+      if (st[0].length > 8 || st[1].length > 8) return "steps["+idxStr+"]_too_long";
+    }
+
+    // samples validation (max index 59999)
+    const samples = rec.samples;
+    if (!Array.isArray(samples)) return "samples_not_array";
+    if (samples.length > 60000) return "samples_too_many";
+    for (let i=0;i<samples.length;i++){
+      const idxStr = String(i);
+      if (!/^(?:0|[1-9][0-9]{0,3}|[1-5][0-9]{4})$/.test(idxStr)) return "samples_bad_index_"+idxStr;
+
+      const s = samples[i];
+      if (!s || typeof s !== "object") return "samples["+idxStr+"]_not_object";
+
+      // required children
+      const reqS = ["s","a","actor","cap","crown","trap","t"];
+      for (const k of reqS){ if (!(k in s)) return "samples["+idxStr+"]_missing_"+k; }
+
+      if (typeof s.a !== "number" || !Number.isFinite(s.a)) return "samples["+idxStr+"]_a";
+      if (typeof s.actor !== "number" || !Number.isFinite(s.actor)) return "samples["+idxStr+"]_actor";
+      if (typeof s.cap !== "number" || !Number.isFinite(s.cap)) return "samples["+idxStr+"]_cap";
+      if (typeof s.crown !== "number" || !Number.isFinite(s.crown)) return "samples["+idxStr+"]_crown";
+      if (typeof s.trap !== "number" || !Number.isFinite(s.trap)) return "samples["+idxStr+"]_trap";
+      if (typeof s.t !== "number" || !Number.isFinite(s.t)) return "samples["+idxStr+"]_t";
+
+      const st = s.s;
+      if (!st || typeof st !== "object") return "samples["+idxStr+"]_s_not_object";
+      const reqSt = ["b","p","ic","cp"];
+      for (const k of reqSt){ if (!(k in st)) return "samples["+idxStr+"]_s_missing_"+k; }
+      if (typeof st.b !== "string" || st.b.length > 256) return "samples["+idxStr+"]_s_b";
+      if (typeof st.p !== "number" || !Number.isFinite(st.p)) return "samples["+idxStr+"]_s_p";
+      if (typeof st.ic !== "number" || !Number.isFinite(st.ic)) return "samples["+idxStr+"]_s_ic";
+      if (typeof st.cp !== "number" || !Number.isFinite(st.cp)) return "samples["+idxStr+"]_s_cp";
+
+      // Optional numeric fields that rules mention
+      const opt = ["sf","sfFlags","sfDecision","Lmax","Ls","capturesDone","sfStartedFrom"];
+      for (const k of opt){
+        if (k in s && s[k] != null) {
+          if (typeof s[k] !== "number" || !Number.isFinite(s[k])) return "samples["+idxStr+"]_"+k;
+        }
+      }
+    }
+
+    return null;
+  } catch(e){
+    return "deep_validator_error";
+  }
+}
+
+function _stripNullsDeep(x){
+  try{
+    if (Array.isArray(x)){
+      const out = [];
+      for (const v of x){
+        if (v === null || v === undefined) continue;
+        out.push(_stripNullsDeep(v));
+      }
+      return out;
+    }
+    if (x && typeof x === "object"){
+      const out = {};
+      for (const k of Object.keys(x)){
+        const v = x[k];
+        if (v === null || v === undefined) continue;
+        out[k] = _stripNullsDeep(v);
+      }
+      return out;
+    }
+    return x;
+  } catch(_){
+    return x;
+  }
+}
+function _trainRecordFirstRuleViolation(rec){
     try{
       if (!rec || typeof rec !== "object") return "root_not_object";
       const req = ["schema","mode","startedAt","endedAt","durationMs","endReason","steps","samples","processed","purgeAt"];
@@ -4965,6 +5074,24 @@ const TrainRecorder = (() => {
       }
     } catch (_) {}
 
+// Deep local check mirroring deployed RTDB rules (helps explain permission_denied).
+let deepViolation = null;
+try {
+  // Remove null/undefined so we don't send deletions inside a set() payload.
+  const cleaned = _stripNullsDeep(record);
+  // Preserve reference; overwrite fields we allow to change.
+  record.steps = cleaned.steps;
+  record.samples = cleaned.samples;
+  if (cleaned.winner === undefined) { try { delete record.winner; } catch(_) {} }
+  if (cleaned.id === undefined) { try { delete record.id; } catch(_) {} }
+
+  deepViolation = _trainRecordFirstDeepRuleViolation(record);
+  if (deepViolation) {
+    console.warn("TrainRecorder deep rule violation:", deepViolation, record);
+  }
+} catch (_) {}
+
+
     
     
     
@@ -5036,6 +5163,18 @@ const TrainRecorder = (() => {
       const ref = firebase.database().ref(TRAIN_PATH).push();
       record.id = ref.key;
 
+
+
+// Refresh ID token to ensure RTDB connection has an up-to-date auth token.
+try { if (u && typeof u.getIdToken === "function") await u.getIdToken(true); } catch (_) {}
+
+// If the payload fails the local mirror of RTDB validation, do not attempt upload.
+if (deepViolation) {
+  _logLearningUpload(false, "invalid_payload");
+  console.warn("TrainRecorder upload skipped due to local rule violation:", deepViolation);
+  resetGame();
+  return { uploaded: false, skipped: false, reason: "invalid_payload:" + deepViolation };
+}
       await ref.set(record);
 
       _logLearningUpload(true);
@@ -5044,6 +5183,14 @@ const TrainRecorder = (() => {
       return { uploaded: true, id: record.id };
     } catch (e) {
       console.warn("TrainRecorder upload failed:", e);
+console.warn("TrainRecorder upload context:", {
+  uid: (u && u.uid) ? u.uid : null,
+  isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : null,
+  deepViolation: deepViolation || null,
+  stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
+  samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null
+});
+
       _logLearningUpload(false, _dbErrorReason(e) || "upload_failed");
       resetGame();
       return { uploaded: false, skipped: false, reason: "upload_failed" };
