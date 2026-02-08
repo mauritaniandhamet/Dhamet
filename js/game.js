@@ -4497,205 +4497,6 @@ const TrainRecorder = (() => {
   }
 
 
-  // --- Training upload sanitization to match RTDB rules (trainGamesV3) ---
-  function _isFiniteNumber(x){ return (typeof x === "number") && Number.isFinite(x); }
-
-  function _sanitizeStepsForTraining(steps){
-    const out = [];
-    try{
-      if (!Array.isArray(steps)) return out;
-      const n = Math.min(steps.length, 12000);
-      for (let i=0;i<n;i++){
-        const st = steps[i];
-        if (!Array.isArray(st) || st.length < 2) continue;
-        const a = st[0], b = st[1];
-        if (typeof a !== "string" || typeof b !== "string") continue;
-        if (a.length > 8 || b.length > 8) continue;
-        out.push([a, b]);
-      }
-    } catch(_) {}
-    return out;
-  }
-
-  function _sanitizeSamplesForTraining(samples){
-    const out = [];
-    try{
-      if (!Array.isArray(samples)) return out;
-      const n = Math.min(samples.length, 60000);
-      for (let i=0;i<n;i++){
-        const s = samples[i];
-        if (!s || typeof s !== "object") continue;
-
-        const st = s.s;
-        if (!st || typeof st !== "object") continue;
-
-        const b = st.b;
-        if (typeof b !== "string" || b.length > 256) continue;
-
-        const p = st.p, ic = st.ic, cp = st.cp;
-        if (!_isFiniteNumber(p) || !_isFiniteNumber(ic) || !_isFiniteNumber(cp)) continue;
-
-        const a = s.a, actor = s.actor, cap = s.cap, crown = s.crown, trap = s.trap, t0 = s.t;
-        if (!_isFiniteNumber(a) || !_isFiniteNumber(actor) || !_isFiniteNumber(cap) || !_isFiniteNumber(crown) || !_isFiniteNumber(trap) || !_isFiniteNumber(t0)) continue;
-
-        const clean = {
-          s: { b: b, p: p, ic: ic, cp: cp },
-          a: a,
-          actor: actor,
-          cap: cap,
-          crown: crown,
-          trap: trap,
-          t: t0,
-        };
-
-        // Optional numeric fields (only keep if finite numbers)
-        const optKeys = ["sf","sfFlags","sfDecision","Lmax","Ls","capturesDone","sfStartedFrom"];
-        for (const k of optKeys){
-          if (Object.prototype.hasOwnProperty.call(s, k) && _isFiniteNumber(s[k])) clean[k] = s[k];
-        }
-
-        out.push(clean);
-      }
-    } catch(_) {}
-    return out;
-  }
-
-  
-function _trainRecordFirstDeepRuleViolation(rec){
-  try{
-    if (!rec || typeof rec !== "object") return "root_not_object";
-    const req = ["schema","mode","startedAt","endedAt","durationMs","endReason","steps","samples","processed","purgeAt"];
-    for (const k of req){ if (!(k in rec)) return "missing_"+k; }
-
-    // Top-level constraints
-    if (typeof rec.schema !== "number" || !Number.isFinite(rec.schema) || rec.schema !== 3) return "schema";
-    if (typeof rec.mode !== "string" || rec.mode.length > 24) return "mode";
-    if (typeof rec.startedAt !== "number" || !Number.isFinite(rec.startedAt)) return "startedAt";
-    if (typeof rec.endedAt !== "number" || !Number.isFinite(rec.endedAt)) return "endedAt";
-    if (typeof rec.durationMs !== "number" || !Number.isFinite(rec.durationMs)) return "durationMs";
-    if (typeof rec.endReason !== "string" || rec.endReason.length > 24) return "endReason";
-    if (typeof rec.processed !== "boolean") return "processed";
-    if (typeof rec.purgeAt !== "number" || !Number.isFinite(rec.purgeAt)) return "purgeAt";
-
-    if (Object.prototype.hasOwnProperty.call(rec, "winner") && rec.winner != null) {
-      if (typeof rec.winner !== "number" || !Number.isFinite(rec.winner)) return "winner";
-    }
-    if (Object.prototype.hasOwnProperty.call(rec, "id") && rec.id != null) {
-      if (typeof rec.id !== "string") return "id";
-    }
-
-    // steps validation (max index 11999, each item [string<=8, string<=8])
-    const steps = rec.steps;
-    if (!Array.isArray(steps)) return "steps_not_array";
-    if (steps.length > 12000) return "steps_too_many";
-    for (let i=0;i<steps.length;i++){
-      const idxStr = String(i);
-      // mirrors rules regex
-      if (!/^(?:0|[1-9][0-9]{0,3}|1[01][0-9]{3})$/.test(idxStr)) return "steps_bad_index_"+idxStr;
-      const st = steps[i];
-      if (!Array.isArray(st) || st.length < 2) return "steps["+idxStr+"]_bad_tuple";
-      if (st.length > 2) return "steps["+idxStr+"]_extra_fields";
-      if (typeof st[0] !== "string" || typeof st[1] !== "string") return "steps["+idxStr+"]_not_strings";
-      if (st[0].length > 8 || st[1].length > 8) return "steps["+idxStr+"]_too_long";
-    }
-
-    // samples validation (max index 59999)
-    const samples = rec.samples;
-    if (!Array.isArray(samples)) return "samples_not_array";
-    if (samples.length > 60000) return "samples_too_many";
-    for (let i=0;i<samples.length;i++){
-      const idxStr = String(i);
-      if (!/^(?:0|[1-9][0-9]{0,3}|[1-5][0-9]{4})$/.test(idxStr)) return "samples_bad_index_"+idxStr;
-
-      const s = samples[i];
-      if (!s || typeof s !== "object") return "samples["+idxStr+"]_not_object";
-
-      // required children
-      const reqS = ["s","a","actor","cap","crown","trap","t"];
-      for (const k of reqS){ if (!(k in s)) return "samples["+idxStr+"]_missing_"+k; }
-
-      if (typeof s.a !== "number" || !Number.isFinite(s.a)) return "samples["+idxStr+"]_a";
-      if (typeof s.actor !== "number" || !Number.isFinite(s.actor)) return "samples["+idxStr+"]_actor";
-      if (typeof s.cap !== "number" || !Number.isFinite(s.cap)) return "samples["+idxStr+"]_cap";
-      if (typeof s.crown !== "number" || !Number.isFinite(s.crown)) return "samples["+idxStr+"]_crown";
-      if (typeof s.trap !== "number" || !Number.isFinite(s.trap)) return "samples["+idxStr+"]_trap";
-      if (typeof s.t !== "number" || !Number.isFinite(s.t)) return "samples["+idxStr+"]_t";
-
-      const st = s.s;
-      if (!st || typeof st !== "object") return "samples["+idxStr+"]_s_not_object";
-      const reqSt = ["b","p","ic","cp"];
-      for (const k of reqSt){ if (!(k in st)) return "samples["+idxStr+"]_s_missing_"+k; }
-      if (typeof st.b !== "string" || st.b.length > 256) return "samples["+idxStr+"]_s_b";
-      if (typeof st.p !== "number" || !Number.isFinite(st.p)) return "samples["+idxStr+"]_s_p";
-      if (typeof st.ic !== "number" || !Number.isFinite(st.ic)) return "samples["+idxStr+"]_s_ic";
-      if (typeof st.cp !== "number" || !Number.isFinite(st.cp)) return "samples["+idxStr+"]_s_cp";
-
-      // Optional numeric fields that rules mention
-      const opt = ["sf","sfFlags","sfDecision","Lmax","Ls","capturesDone","sfStartedFrom"];
-      for (const k of opt){
-        if (k in s && s[k] != null) {
-          if (typeof s[k] !== "number" || !Number.isFinite(s[k])) return "samples["+idxStr+"]_"+k;
-        }
-      }
-    }
-
-    return null;
-  } catch(e){
-    return "deep_validator_error";
-  }
-}
-
-function _stripNullsDeep(x){
-  try{
-    if (Array.isArray(x)){
-      const out = [];
-      for (const v of x){
-        if (v === null || v === undefined) continue;
-        out.push(_stripNullsDeep(v));
-      }
-      return out;
-    }
-    if (x && typeof x === "object"){
-      const out = {};
-      for (const k of Object.keys(x)){
-        const v = x[k];
-        if (v === null || v === undefined) continue;
-        out[k] = _stripNullsDeep(v);
-      }
-      return out;
-    }
-    return x;
-  } catch(_){
-    return x;
-  }
-}
-function _trainRecordFirstRuleViolation(rec){
-    try{
-      if (!rec || typeof rec !== "object") return "root_not_object";
-      const req = ["schema","mode","startedAt","endedAt","durationMs","endReason","steps","samples","processed","purgeAt"];
-      for (const k of req){ if (!(k in rec)) return "missing_"+k; }
-
-      if (!_isFiniteNumber(rec.schema) || (rec.schema|0) !== 3) return "schema";
-      if (typeof rec.mode !== "string" || rec.mode.length > 24) return "mode";
-      if (!_isFiniteNumber(rec.startedAt)) return "startedAt";
-      if (!_isFiniteNumber(rec.endedAt)) return "endedAt";
-      if (!_isFiniteNumber(rec.durationMs)) return "durationMs";
-      if (typeof rec.endReason !== "string" || rec.endReason.length > 24) return "endReason";
-      if (typeof rec.processed !== "boolean") return "processed";
-      if (!_isFiniteNumber(rec.purgeAt)) return "purgeAt";
-      if (Object.prototype.hasOwnProperty.call(rec, "winner") && rec.winner != null && !_isFiniteNumber(rec.winner)) return "winner";
-      if (Object.prototype.hasOwnProperty.call(rec, "id") && rec.id != null && typeof rec.id !== "string") return "id";
-
-      if (Array.isArray(rec.steps) && rec.steps.length > 12000) return "steps_too_many";
-      if (Array.isArray(rec.samples) && rec.samples.length > 60000) return "samples_too_many";
-
-      return null;
-    } catch(_) {
-      return "validator_error";
-    }
-  }
-
-
   function _isRegisteredSession() {
     try {
       const s = (window.ZAuth && typeof ZAuth.readSession === "function") ? ZAuth.readSession() : null;
@@ -5039,20 +4840,6 @@ function _trainRecordFirstRuleViolation(rec){
     const startedAt = Number.isFinite(g.startedAt) ? g.startedAt : endedAt;
     const durationMs = Math.max(0, endedAt - startedAt);
 
-    // Flush any pending turn buffers so the last move isn't lost when the game ends.
-    try {
-      if (!Array.isArray(g.samples)) g.samples = [];
-      if (!Array.isArray(g.steps)) g.steps = [];
-      if (Array.isArray(g._pendingSamples) && g._pendingSamples.length) {
-        g.samples.push(...g._pendingSamples);
-        g._pendingSamples.length = 0;
-      }
-      if (Array.isArray(g._pendingSteps) && g._pendingSteps.length) {
-        g.steps.push(...g._pendingSteps);
-        g._pendingSteps.length = 0;
-      }
-    } catch (_) {}
-
     const mode = detectMode();
 
     const record = {
@@ -5068,43 +4855,6 @@ function _trainRecordFirstRuleViolation(rec){
       processed: false,
       purgeAt: endedAt + KEEP_MS,
     };
-
-    // Sanitize training payload so it matches RTDB validation for trainGamesV3 exactly.
-    try {
-      const _origStepsLen = Array.isArray(record.steps) ? record.steps.length : 0;
-      const _origSamplesLen = Array.isArray(record.samples) ? record.samples.length : 0;
-
-      record.steps = _sanitizeStepsForTraining(record.steps);
-      record.samples = _sanitizeSamplesForTraining(record.samples);
-
-      const _v = _trainRecordFirstRuleViolation(record);
-      if (_v) console.warn("TrainRecorder record violates RTDB rules:", _v, record);
-
-      if (_origStepsLen !== record.steps.length || _origSamplesLen !== record.samples.length) {
-        console.warn("TrainRecorder sanitized payload:", {
-          stepsDropped: _origStepsLen - record.steps.length,
-          samplesDropped: _origSamplesLen - record.samples.length
-        });
-      }
-    } catch (_) {}
-
-// Deep local check mirroring deployed RTDB rules (helps explain permission_denied).
-let deepViolation = null;
-try {
-  // Remove null/undefined so we don't send deletions inside a set() payload.
-  const cleaned = _stripNullsDeep(record);
-  // Preserve reference; overwrite fields we allow to change.
-  record.steps = cleaned.steps;
-  record.samples = cleaned.samples;
-  if (cleaned.winner === undefined) { try { delete record.winner; } catch(_) {} }
-  if (cleaned.id === undefined) { try { delete record.id; } catch(_) {} }
-
-  deepViolation = _trainRecordFirstDeepRuleViolation(record);
-  if (deepViolation) {
-    console.warn("TrainRecorder deep rule violation:", deepViolation, record);
-  }
-} catch (_) {}
-
 
     
     
@@ -5152,8 +4902,6 @@ try {
       return { uploaded: false, skipped: true };
     }
 
-    // Keep references visible to both try and catch blocks for reliable diagnostics.
-    let u = null;
     try {
       if (!(window.firebase && firebase.database)) {
         _logLearningUpload(false, "no_firebase");
@@ -5161,133 +4909,21 @@ try {
         return { uploaded: false, skipped: false, reason: "no_firebase" };
       }
 
-      // Require an active Firebase Auth user (anonymous or registered).
-      try {
-        if (firebase.auth) {
-          const a = firebase.auth();
-          u = (a && a.currentUser) ? a.currentUser : null;
-        }
-      } catch (_) {}
-      if (!u || !u.uid) {
-        _logLearningUpload(false, "no_auth");
-        resetGame();
-        return { uploaded: false, skipped: false, reason: "no_auth" };
-      }
-
-
-      // Ensure auth + database come from the same Firebase app instance.
-      let _app = null;
-      let _auth = null;
-      let _db = null;
-      let _appName = null;
-      let _dbUrl = null;
-      try { _app = (firebase.apps && firebase.apps.length) ? firebase.app() : null; } catch (_) { _app = null; }
-      try { _auth = _app ? firebase.auth(_app) : firebase.auth(); } catch (_) { _auth = null; }
-      try { _db = _app ? firebase.database(_app) : firebase.database(); } catch (_) { _db = null; }
-      try {
-        const _a = _app || ((firebase.apps && firebase.apps.length) ? firebase.app() : null);
-        if (_a) {
-          _appName = (typeof _a.name === "string") ? _a.name : null;
-          _dbUrl = (_a.options && _a.options.databaseURL) ? String(_a.options.databaseURL) : null;
-        }
-      } catch (_) {}
-      if (!_db) _db = firebase.database();
-
-      const ref = _db.ref(TRAIN_PATH).push();
+      const ref = firebase.database().ref(TRAIN_PATH).push();
       record.id = ref.key;
 
-	// Refresh ID token to ensure RTDB connection has an up-to-date auth token.
-	let _tokenRefreshed = false;
-	try { if (u && typeof u.getIdToken === "function") { await u.getIdToken(true); _tokenRefreshed = true; } } catch (_) {}
-	try {
-	  const __pre = {
-	    uid: u && u.uid ? String(u.uid) : null,
-	    appName: _appName,
-	    dbUrl: _dbUrl,
-	    isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : null,
-	    tokenRefreshed: _tokenRefreshed,
-	    deepViolation: deepViolation || null,
-	    mode: record && record.mode ? String(record.mode) : null,
-	    endReason: record && record.endReason ? String(record.endReason) : null,
-	    stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
-	    samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
-	    id: record && record.id ? String(record.id) : null
-	  };
-	  try { window.__TRAIN_PRE_UPLOAD = __pre; } catch (_) {}
-	  console.warn("TrainRecorder pre-upload:", __pre);
-	  console.warn("TrainRecorder pre-upload JSON:", JSON.stringify(__pre));
-	} catch (_) {}
-
-// If the payload fails the local mirror of RTDB validation, do not attempt upload.
-if (deepViolation) {
-  _logLearningUpload(false, "invalid_payload");
-  console.warn("TrainRecorder upload skipped due to local rule violation:", deepViolation);
-  resetGame();
-  return { uploaded: false, skipped: false, reason: "invalid_payload:" + deepViolation };
-}
-      // If there's no usable data, skip upload (RTDB may treat empty nodes as non-existent, failing hasChildren()).
-      if ((record && Array.isArray(record.samples) && record.samples.length === 0) || (record && Array.isArray(record.steps) && record.steps.length === 0)) {
-        _logLearningUpload(false, "no_data");
-        console.warn("TrainRecorder upload skipped: empty steps/samples after sanitization", {
-          stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
-          samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
-        });
-        resetGame();
-        return { uploaded: false, skipped: true, reason: "no_data" };
-      }
-
-      // Upload to RTDB. If we get PERMISSION_DENIED, force a DB reconnect and retry once.
-      try {
-        await ref.set(record);
-      } catch (e1) {
-        const code1 = (e1 && (e1.code || e1.name)) ? String(e1.code || e1.name).toLowerCase() : "";
-        const msg1 = (e1 && e1.message) ? String(e1.message).toLowerCase() : "";
-        const isPerm = code1.includes("permission") || msg1.includes("permission");
-        if (isPerm && _db && typeof _db.goOffline === "function" && typeof _db.goOnline === "function") {
-          try {
-            console.warn("TrainRecorder retry after permission_denied: forcing DB reconnect");
-            _db.goOffline();
-            _db.goOnline();
-            try { if (u && typeof u.getIdToken === "function") { await u.getIdToken(true); } } catch (_) {}
-            await ref.set(record);
-          } catch (e2) {
-            throw e2;
-          }
-        } else {
-          throw e1;
-        }
-      }
-
+      await ref.set(record);
 
       _logLearningUpload(true);
 
       resetGame();
       return { uploaded: true, id: record.id };
-	    } catch (e) {
-	      const r = _dbErrorReason(e) || "upload_failed";
-	      console.warn("TrainRecorder upload failed:", e);
-	      try {
-	        // Re-resolve current user in case auth state changed between try/catch blocks.
-	        let u2 = null;
-	        try { u2 = (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser : null; } catch(_) {}
-	        const __ctx = {
-									  reason: r,
-									  uid: (u && u.uid) ? String(u.uid) : ((u2 && u2.uid) ? String(u2.uid) : null),
-									  isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : ((u2 && typeof u2.isAnonymous === "boolean") ? u2.isAnonymous : null),
-									  deepViolation: deepViolation || null,
-									  stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
-									  samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
-									  id: (record && record.id) ? String(record.id) : null,
-									};
-									try { window.__TRAIN_UPLOAD_CONTEXT = __ctx; } catch (_) {}
-									console.warn("TrainRecorder upload context:", __ctx);
-									console.warn("TrainRecorder upload context JSON:", JSON.stringify(__ctx));
-	      } catch (_) {}
-
-	      _logLearningUpload(false, r);
-	      resetGame();
-	      return { uploaded: false, skipped: false, reason: r };
-	    }
+    } catch (e) {
+      console.warn("TrainRecorder upload failed:", e);
+      _logLearningUpload(false, _dbErrorReason(e) || "upload_failed");
+      resetGame();
+      return { uploaded: false, skipped: false, reason: "upload_failed" };
+    }
   }
 
   
