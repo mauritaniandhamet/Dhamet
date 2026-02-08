@@ -5039,6 +5039,20 @@ function _trainRecordFirstRuleViolation(rec){
     const startedAt = Number.isFinite(g.startedAt) ? g.startedAt : endedAt;
     const durationMs = Math.max(0, endedAt - startedAt);
 
+    // Flush any pending turn buffers so the last move isn't lost when the game ends.
+    try {
+      if (!Array.isArray(g.samples)) g.samples = [];
+      if (!Array.isArray(g.steps)) g.steps = [];
+      if (Array.isArray(g._pendingSamples) && g._pendingSamples.length) {
+        g.samples.push(...g._pendingSamples);
+        g._pendingSamples.length = 0;
+      }
+      if (Array.isArray(g._pendingSteps) && g._pendingSteps.length) {
+        g.steps.push(...g._pendingSteps);
+        g._pendingSteps.length = 0;
+      }
+    } catch (_) {}
+
     const mode = detectMode();
 
     const record = {
@@ -5165,18 +5179,23 @@ try {
       record.id = ref.key;
 
 	// Refresh ID token to ensure RTDB connection has an up-to-date auth token.
-	try { if (u && typeof u.getIdToken === "function") await u.getIdToken(true); } catch (_) {}
+	let _tokenRefreshed = false;
+	try { if (u && typeof u.getIdToken === "function") { await u.getIdToken(true); _tokenRefreshed = true; } } catch (_) {}
 	try {
-	  console.warn("TrainRecorder pre-upload:", {
+	  const __pre = {
 	    uid: u && u.uid ? String(u.uid) : null,
 	    isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : null,
+	    tokenRefreshed: _tokenRefreshed,
 	    deepViolation: deepViolation || null,
 	    mode: record && record.mode ? String(record.mode) : null,
 	    endReason: record && record.endReason ? String(record.endReason) : null,
 	    stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
 	    samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
 	    id: record && record.id ? String(record.id) : null
-	  });
+	  };
+	  try { window.__TRAIN_PRE_UPLOAD = __pre; } catch (_) {}
+	  console.warn("TrainRecorder pre-upload:", __pre);
+	  console.warn("TrainRecorder pre-upload JSON:", JSON.stringify(__pre));
 	} catch (_) {}
 
 // If the payload fails the local mirror of RTDB validation, do not attempt upload.
@@ -5186,6 +5205,17 @@ if (deepViolation) {
   resetGame();
   return { uploaded: false, skipped: false, reason: "invalid_payload:" + deepViolation };
 }
+      // If there's no usable data, skip upload (RTDB may treat empty nodes as non-existent, failing hasChildren()).
+      if ((record && Array.isArray(record.samples) && record.samples.length === 0) || (record && Array.isArray(record.steps) && record.steps.length === 0)) {
+        _logLearningUpload(false, "no_data");
+        console.warn("TrainRecorder upload skipped: empty steps/samples after sanitization", {
+          stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
+          samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
+        });
+        resetGame();
+        return { uploaded: false, skipped: true, reason: "no_data" };
+      }
+
       await ref.set(record);
 
       _logLearningUpload(true);
@@ -5199,15 +5229,18 @@ if (deepViolation) {
 	        // Re-resolve current user in case auth state changed between try/catch blocks.
 	        let u2 = null;
 	        try { u2 = (firebase.auth && firebase.auth().currentUser) ? firebase.auth().currentUser : null; } catch(_) {}
-	        console.warn("TrainRecorder upload context:", {
-	          reason: r,
-	          uid: (u && u.uid) ? String(u.uid) : ((u2 && u2.uid) ? String(u2.uid) : null),
-	          isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : ((u2 && typeof u2.isAnonymous === "boolean") ? u2.isAnonymous : null),
-	          deepViolation: deepViolation || null,
-	          stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
-	          samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
-	          id: (record && record.id) ? String(record.id) : null,
-	        });
+	        const __ctx = {
+									  reason: r,
+									  uid: (u && u.uid) ? String(u.uid) : ((u2 && u2.uid) ? String(u2.uid) : null),
+									  isAnonymous: (u && typeof u.isAnonymous === "boolean") ? u.isAnonymous : ((u2 && typeof u2.isAnonymous === "boolean") ? u2.isAnonymous : null),
+									  deepViolation: deepViolation || null,
+									  stepsLen: (record && Array.isArray(record.steps)) ? record.steps.length : null,
+									  samplesLen: (record && Array.isArray(record.samples)) ? record.samples.length : null,
+									  id: (record && record.id) ? String(record.id) : null,
+									};
+									try { window.__TRAIN_UPLOAD_CONTEXT = __ctx; } catch (_) {}
+									console.warn("TrainRecorder upload context:", __ctx);
+									console.warn("TrainRecorder upload context JSON:", JSON.stringify(__ctx));
 	      } catch (_) {}
 
 	      _logLearningUpload(false, r);
