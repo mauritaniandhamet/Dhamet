@@ -4481,230 +4481,84 @@ const TrainRecorder = (() => {
     g._inForceRewrite = false;
   }
 
-  function _parseRC(str) {
-    try {
-      if (typeof str !== "string") return null;
-      const m = str.match(/^([0-8])\.([0-8])$/);
-      if (!m) return null;
-      const r = m[1] | 0;
-      const c = m[2] | 0;
-      return r * BOARD_N + c;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function _decodePackedBoard(b64) {
-    try {
-      if (typeof b64 !== "string" || !b64) return null;
-      if (typeof atob !== "function") return null;
-      const bin = atob(b64);
-      if (!bin || bin.length !== N_CELLS) return null;
-      const u8 = new Uint8Array(N_CELLS);
-      for (let i = 0; i < N_CELLS; i++) u8[i] = bin.charCodeAt(i) & 255;
-      return new Int8Array(u8.buffer);
-    } catch (_) {
-      return null;
-    }
-  }
-
-  function _countsFromPackedBoard(packed) {
-    const out = { top: 0, bot: 0, tKings: 0, bKings: 0 };
-    try {
-      if (!packed || packed.length !== N_CELLS) return out;
-      for (let i = 0; i < N_CELLS; i++) {
-        const v = packed[i] | 0;
-        if (v > 0) {
-          out.top++;
-          if (Math.abs(v) === 2) out.tKings++;
-        } else if (v < 0) {
-          out.bot++;
-          if (Math.abs(v) === 2) out.bKings++;
-        }
-      }
-    } catch (_) {}
-    return out;
-  }
-
-  function _finalCountsFromGameBoard() {
-    const out = { top: 0, bot: 0, tKings: 0, bKings: 0 };
-    try {
-      if (!Game || !Game.board) return out;
-      for (let r = 0; r < BOARD_N; r++) {
-        for (let c = 0; c < BOARD_N; c++) {
-          const v = Game.board[r][c] | 0;
-          if (v > 0) {
-            out.top++;
-            if (Math.abs(v) === 2) out.tKings++;
-          } else if (v < 0) {
-            out.bot++;
-            if (Math.abs(v) === 2) out.bKings++;
-          }
-        }
-      }
-    } catch (_) {}
-    return out;
-  }
-
-  function _isOutcomeConsistent(record, finalCounts) {
-    try {
-      const fc = finalCounts || { top: 0, bot: 0, tKings: 0, bKings: 0 };
-      const endReason = record && record.endReason ? String(record.endReason) : "";
-      const winner = record ? record.winner : null;
-
-      if (endReason === "draw") {
-        if (winner !== null) return false;
-        // Game's native draw condition in this codebase: only two kings remain (one per side).
-        if (!(fc.top === 1 && fc.bot === 1 && fc.tKings === 1 && fc.bKings === 1)) return false;
-        return true;
-      }
-
-      if (endReason === "natural_win") {
-        if (!(winner === TOP || winner === BOT)) return false;
-        if (winner === TOP) {
-          // BOT must have no pieces at game end (as per checkEndConditions()).
-          if (fc.bot !== 0) return false;
-        } else {
-          if (fc.top !== 0) return false;
-        }
-        return true;
-      }
-
-      // Reject any other end reasons for training upload.
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  function _sampleIndices(n, maxChecks = 40) {
-    const out = [];
-    try {
-      n = n | 0;
-      maxChecks = Math.max(0, maxChecks | 0);
-      if (n <= 0) return out;
-      if (n <= maxChecks || maxChecks <= 0) {
-        for (let i = 0; i < n; i++) out.push(i);
-        return out;
-      }
-      const set = new Set();
-      const head = Math.min(10, n);
-      const tail = Math.min(10, n);
-      for (let i = 0; i < head; i++) set.add(i);
-      for (let i = n - tail; i < n; i++) if (i >= 0) set.add(i);
-      const mid = Math.max(0, maxChecks - set.size);
-      for (let k = 1; k <= mid; k++) {
-        const i = Math.floor((k * (n - 1)) / (mid + 1));
-        set.add(i);
-      }
-      for (const i of set) out.push(i);
-      out.sort((a, b) => a - b);
-    } catch (_) {}
-    return out;
-  }
-
-  function _seemsRealMatchSequence(record) {
-    try {
-      if (!record) return false;
-      if (!Array.isArray(record.samples) || !Array.isArray(record.steps)) return false;
-
-      const nS = record.samples.length | 0;
-      const nT = record.steps.length | 0;
-
-      // This codebase records one step per sample.
-      if (nS <= 0 || nS !== nT) return false;
-
-      let realSteps = 0;
-      let badSteps = 0;
-
-      // Basic step sanity + count "real" (r.c -> r.c) steps.
-      for (let i = 0; i < nT; i++) {
-        const st = record.steps[i];
-        if (!Array.isArray(st) || st.length !== 2) {
-          badSteps++;
-          continue;
-        }
-        const f = st[0];
-        const t = st[1];
-        const fi = _parseRC(f);
-        const ti = _parseRC(t);
-        if (fi == null || ti == null || fi === ti) continue;
-        realSteps++;
-      }
-
-      // Require that most steps are real coordinate moves.
-      const realFrac = realSteps / Math.max(1, nT);
-      if (realFrac < 0.7) return false;
-      if (badSteps > 0) return false;
-
-      // Validate timeline and a small subset of states vs. moves.
-      const idxs = _sampleIndices(nS, 40);
-      let lastT = -1;
-
-      for (const i of idxs) {
-        const s = record.samples[i];
-        const st = record.steps[i];
-
-        if (!s || !s.s) return false;
-
-        const t = s.t;
-        if (!Number.isFinite(t) || t < 0) return false;
-        if (lastT >= 0 && t + 500 < lastT) return false; // allow small clock jitter only
-        lastT = t;
-
-        // Basic action/actor sanity
-        if (!Number.isFinite(s.a)) return false;
-        const actor = s.actor;
-        if (!(actor === TOP || actor === BOT)) return false;
-
-        // Skip non-coordinate steps (soufla markers etc.)
-        const fi = _parseRC(Array.isArray(st) ? st[0] : null);
-        const ti = _parseRC(Array.isArray(st) ? st[1] : null);
-        if (fi == null || ti == null || fi === ti) continue;
-
-        const packed = _decodePackedBoard(s.s.b);
-        if (!packed) return false;
-
-        const fromV = packed[fi] | 0;
-        const toV = packed[ti] | 0;
-
-        // From-square must contain actor piece; to-square must be empty in pre-move snapshot.
-        if (!fromV) return false;
-        if (pieceOwner(fromV) !== actor) return false;
-        if (toV !== 0) return false;
-      }
-
-      // Ensure timeline is consistent with duration (loose tolerance).
-      const d = record.durationMs;
-      if (Number.isFinite(d) && d >= 0) {
-        const lastSample = record.samples[nS - 1];
-        if (lastSample && Number.isFinite(lastSample.t) && lastSample.t > d + 2000) return false;
-      }
-
-      return true;
-    } catch (_) {
-      return false;
-    }
-  }
-
   function isAcceptableForUpload(record) {
     if (!record) return false;
-    if (!record.samples || record.samples.length < MIN_SAMPLES) return false;
+
+    // Must have enough samples over a minimum duration, and a sane sampling rate.
+    if (!Array.isArray(record.samples) || record.samples.length < MIN_SAMPLES) return false;
     if (!Number.isFinite(record.durationMs) || record.durationMs < MIN_DURATION_MS) return false;
+
+    // Steps and samples are expected to be aligned 1:1 in this app.
+    if (!Array.isArray(record.steps) || record.steps.length !== record.samples.length) return false;
 
     const sps = record.samples.length / Math.max(1, record.durationMs / 1000);
     if (sps > MAX_DECISIONS_PER_SEC) return false;
 
-    // Reject non-natural terminations for training.
+    // Skip obvious non-natural endings.
     if (record.endReason === "disconnect" || record.endReason === "abort" || record.endReason === "cancel") {
       return false;
     }
 
-    // Additional "guardian" checks to reject fabricated / inconsistent records.
-    if (!_seemsRealMatchSequence(record)) return false;
+    // Require a minimum amount of real coordinate moves to avoid junk uploads.
+    // (Soufla and boundary markers are allowed, but cannot dominate the record.)
+    const reRC = /^(?:[0-9]|1[0-9])\.(?:[0-9]|1[0-9])$/;
+    let coordMoves = 0;
 
-    const finalCounts = _finalCountsFromGameBoard();
-    if (!_isOutcomeConsistent(record, finalCounts)) return false;
+    let prev = null;
+    let run = 0;
+    let maxRun = 0;
+    const unique = new Set();
+
+    for (let i = 0; i < record.steps.length; i++) {
+      const st = record.steps[i];
+      if (!Array.isArray(st) || st.length < 2) return false;
+
+      const f = String(st[0] ?? "");
+      const t = String(st[1] ?? "");
+      const key = f + "->" + t;
+      unique.add(key);
+
+      if (prev === key) run++;
+      else { prev = key; run = 1; }
+      if (run > maxRun) maxRun = run;
+
+      if (reRC.test(f) && reRC.test(t) && f !== t) coordMoves++;
+    }
+
+    const minCoord = Math.min(6, Math.max(2, Math.floor(record.steps.length * 0.25)));
+    if (coordMoves < minCoord) return false;
+
+    // Reject extreme repetition (common in fabricated spam).
+    if (maxRun >= Math.max(10, Math.floor(record.steps.length * 0.5))) return false;
+
+    // Reject records with almost no variety of moves.
+    if (unique.size < Math.max(3, Math.floor(record.steps.length * 0.1))) return false;
+
+    // Cross-check ending against the actual board state when possible, without changing game logic.
+    try {
+      let top = 0, bot = 0, tKings = 0, bKings = 0;
+      for (let r = 0; r < BOARD_N; r++) {
+        for (let c = 0; c < BOARD_N; c++) {
+          const v = Game.board[r][c];
+          if (v > 0) {
+            top++;
+            if (Math.abs(v) === 2) tKings++;
+          } else if (v < 0) {
+            bot++;
+            if (Math.abs(v) === 2) bKings++;
+          }
+        }
+      }
+
+      if (record.endReason === "natural_win") {
+        if (!(top === 0 || bot === 0)) return false;
+        if (record.winner === TOP && bot !== 0) return false;
+        if (record.winner === BOT && top !== 0) return false;
+      } else if (record.endReason === "draw") {
+        if (!(top === 1 && bot === 1 && tKings === 1 && bKings === 1)) return false;
+        if (record.winner != null) return false;
+      }
+    } catch (_) {}
 
     return true;
   }
@@ -4764,7 +4618,7 @@ const TrainRecorder = (() => {
       const db = firebase.database();
 
       const regUid = _getRegisteredFirebaseUid();
-      const hasRegistered = !!regUid;
+      const hasRegistered = !!regUid || _isRegisteredSession();
       if (!hasRegistered) return { ok: false, reason: "not_registered" };
 
       const mode = record && record.mode ? record.mode : "unknown";
@@ -5122,7 +4976,18 @@ const TrainRecorder = (() => {
         return { uploaded: false, skipped: false, reason: "no_firebase" };
       }
 
-            // Learning upload does not require Firebase Auth (public create allowed in RTDB rules).
+      try {
+        if (firebase.auth) {
+          const a = firebase.auth();
+          if (a && !a.currentUser && typeof a.signInAnonymously === "function") {
+            await a.signInAnonymously().catch(() => null);
+          }
+        }
+      } catch (_) {}
+
+      // Auth is best-effort; do not abort upload if auth is unavailable.
+      // RTDB rules (if any) will enforce auth requirements.
+
       const ref = firebase.database().ref(TRAIN_PATH).push();
       record.id = ref.key;
 
