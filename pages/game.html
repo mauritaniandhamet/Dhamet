@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<!-- Section: pages/game.html — Page navigation and shared page behavior -->
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,viewport-fit=cover"
+    />
+    <meta name="color-scheme" content="light dark" />
+
+    <script>
+      (function () {
+        function readThemeEarly() {
+          var t = null;
+
+          try {
+            var raw = sessionStorage.getItem("zamat.session.settings.v1");
+            if (raw) {
+              var obj = JSON.parse(raw);
+              if (obj && typeof obj.theme === "string") t = obj.theme;
+            }
+          } catch (e) {}
+
+          if (!t) {
+            try {
+              t = localStorage.getItem("zamat.theme");
+            } catch (e) {}
+          }
+
+          if (t !== "dark" && t !== "light") t = "light";
+          document.documentElement.classList.toggle("dark", t === "dark");
+        }
+
+        readThemeEarly();
+
+        try {
+          window.addEventListener("DOMContentLoaded", function () {
+            setTimeout(readThemeEarly, 0);
+          });
+          window.addEventListener("pageshow", function () {
+            setTimeout(readThemeEarly, 0);
+          });
+        } catch (e) {}
+      })();
+    </script>
+
+    <title data-i18n="page_title">لعبة ظامت الموريتانية</title>
+    
+  <link rel="icon" type="image/svg+xml" href="../assets/icons/icon.svg" />
+  <link rel="icon" type="image/png" href="../assets/icons/icon.png" />
+<link rel="canonical" href="game.html" />
+    <meta name="robots" content="index,follow" />
+    <meta property="og:locale" content="ar_AR" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="ظامة" />
+    <meta property="og:title" content="لعبة ظامت الموريتانية (Zamat)" />
+    <meta
+      property="og:description"
+      content="العب لعبة ظامت الموريتانية التقليدية أونلاين مجانًا ضد الكمبيوتر أو أصدقائك. | Zamat is a traditional Mauritanian checkers/draughts game you can play online."
+    />
+    <meta property="og:url" content="game.html" />
+    <meta property="og:image" content="../assets/icons/icon.png" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="لعبة ظامت الموريتانية (Zamat)" />
+    <meta
+      name="twitter:description"
+      content="العب لعبة ظامت الموريتانية التقليدية أونلاين مجانًا ضد الكمبيوتر أو أصدقائك. | Zamat is a traditional Mauritanian checkers/draughts game you can play online."
+    />
+    <meta name="twitter:image" content="../assets/icons/icon.png" />
+
+    <link rel="stylesheet" href="../css/style.css" />
+    <link rel="stylesheet" href="../css/pages.css" />
+<script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.149.0/build/three.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="../js/firebase.config.js"></script>
+    <script defer src="../js/online.js"></script>
+    <script src="../js/i18n.js"></script>
+<script src="../js/modal.js"></script>
+    <script src="../js/app.bundle.js"></script>
+
+    <meta
+      name="description"
+      data-i18n="meta_description"
+      content="العب لعبة ظامت الموريتانية التقليدية أونلاين مجانًا ضد الكمبيوتر أو أصدقائك، مع شرح القواعد والتحديات."
+    />
+    <meta
+      name="keywords"
+      data-i18n="meta_keywords"
+      content="لعبة ظامت, الداما الموريتانية, الضامة الموريتانية, ألعاب صحراوية, ألعاب بدوية ,الظامة الموريتانية, ألعاب استراتيجية, ألعاب موريتانية, ألعاب تقليدية"
+    />
+    <script type="application/ld+json" id="schema-data">
+      {
+        "@context": "https://schema.org",
+        "@type": "Game",
+        "name": "لعبة ظامت الموريتانية",
+        "genre": "لعبة استراتيجية",
+        "applicationCategory": "Game",
+        "operatingSystem": "Web",
+        "url": "game.html",
+        "description": "العب لعبة ظامت الموريتانية التقليدية أونلاين مجانًا ضد الكمبيوتر أو ضد أصدقائك."
+      }
+    </script>
+    <script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PZJ0X3E4KD');
+</script>
+  </head>
+
+  <body class="z-page-body z-has-topbar z-home-page z-game-page">
+    <script>
+      /* pre-classify mode/spectator to avoid UI flashing */
+      (function () {
+        try {
+          var b = document.body;
+          if (!b) return;
+          var sp = new URLSearchParams(location.search || "");
+          var isSpectator = sp.get("spectate") || sp.get("spectator") || sp.get("spec");
+          var hasRoom = sp.get("room") || sp.get("rid") || sp.get("gid") || sp.get("game") || sp.get("id");
+          var isPvp = sp.get("pvp");
+          if (isSpectator) {
+            b.classList.add("z-spectator");
+            b.classList.add("mode-pvp");
+          } else if (isPvp === "1" || hasRoom) {
+            b.classList.add("mode-pvp");
+          }
+        } catch (_) {}
+      })();
+    </script>
+    <div class="app">
+      <header
+        id="mobileHeader"
+        class="mobile-header"
+        data-i18n-aria-label="aria.mobileHeader"
+      ></header>
+
+      <aside class="z-home-leftcol" data-i18n-aria-label="pages.ads.left" >
+        <div class="z-ad-slot" data-i18n="pages.ads.sidebar">
+          مساحة إعلانية (شريط جانبي)
+        </div>
+      </aside>
+
+      <section class="board-wrap" data-i18n-aria-label="aria.board">
+        <canvas id="board" width="1125" height="900"></canvas>
+        <div id="board3d" aria-hidden="true"></div>
+</section>
+
+      <aside class="side">
+        <div class="z-ad-slot z-home-ad-title" data-i18n="pages.ads.sidebar">
+          مساحة إعلانية (شريط جانبي)
+        </div>
+        <div class="status-row">
+          <div id="statusText" class="status">
+            <img id="turnPawn" class="turn-pawn" src="../assets/icons/pawn-black.svg" alt="" aria-hidden="true" />
+            <span id="statusTextMsg">...</span>
+          </div>
+        </div>
+
+        <div class="stats">
+          <div class="stats-desktop">
+            <table>
+              <thead>
+                <tr>
+                  <th data-i18n="ui.stats">الإحصائيات</th>
+                  <th><span class="player-head"><img class="player-ico" src="../assets/icons/player-black.svg" alt="" aria-hidden="true" /><span id="pTopName" data-i18n="players.black">الأسود</span></span></th>
+                  <th><span class="player-head"><img class="player-ico" src="../assets/icons/player-white.svg" alt="" aria-hidden="true" /><span id="pBotName" data-i18n="players.white">الأبيض</span></span></th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-i18n="stats.left">القطع المتبقية</td>
+                  <td id="topLeft">40</td>
+                  <td id="botLeft">40</td>
+                </tr>
+                <tr>
+                  <td data-i18n="stats.kings">الظائم(الملك)</td>
+                  <td id="topKings">0</td>
+                  <td id="botKings">0</td>
+                </tr>
+                <tr>
+                  <td data-i18n="stats.captured">المأسورة</td>
+                  <td id="topCaptured">0</td>
+                  <td id="botCaptured">0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="stats-mobile" data-i18n-aria-label="aria.mobileStats">
+            <table class="stats-mobile-table">
+              <thead>
+                <tr>
+                  <th data-i18n="ui.stats">الإحصائيات</th>
+                  <th class="stats-color-head">
+                    <img class="piece-ico" src="../assets/icons/player-black.svg" alt="" aria-hidden="true" />
+                    <span id="pTopNameM" class="sr-only" data-i18n="players.black">الأسود</span>
+                  </th>
+                  <th class="stats-color-head">
+                    <img class="piece-ico" src="../assets/icons/player-white.svg" alt="" aria-hidden="true" />
+                    <span id="pBotNameM" class="sr-only" data-i18n="players.white">الأبيض</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td data-i18n="stats.left">القطع المتبقية</td>
+                  <td id="topLeftM">40</td>
+                  <td id="botLeftM">40</td>
+                </tr>
+                <tr>
+                  <td data-i18n="stats.kings">الظائم(الملك)</td>
+                  <td id="topKingsM">0</td>
+                  <td id="botKingsM">0</td>
+                </tr>
+                <tr>
+                  <td data-i18n="stats.captured">المأسورة</td>
+                  <td id="topCapturedM">0</td>
+                  <td id="botCapturedM">0</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="ai-state">
+          <span class="muted" data-i18n="ui.aiState"
+            >حالة الذكاء الاصطناعي:</span
+          >
+          <span class="ai-chip" data-chip="onnx"
+            > <span id="onnxBadge" class="badge">—</span></span
+          >
+          <span class="ai-chip" data-chip="human"
+            > 
+            <span id="humanBadge" class="badge">—</span></span
+          >
+        </div>
+
+        <div class="timer-row">
+          <div class="clock">
+            <span class="muted">⏱</span>
+            <span id="killClock">00:00</span>
+          </div>
+          <button id="btnEndKill" class="btn ok keep-text" type="button" disabled>
+            <img class="btn-ico" src="../assets/icons/end-kill.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.endKill">إنهاء الأسر</span>
+          </button>
+        </div>
+
+        <div class="soufla-row">
+          <button id="btnSoufla" class="btn keep-text" type="button">
+            <img class="btn-ico" src="../assets/icons/soufla.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.soufla">سوفلة</span>
+          </button>
+        </div>
+
+        
+
+        <button id="btnEndLocalMatch" class="btn block danger" style="display: none" type="button">
+            <img class="btn-ico" src="../assets/icons/end-match.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.endMatch">إنهاء المباراة</span>
+        </button>
+
+<div class="online-box" role="group" data-i18n-aria-label="aria.onlineActions">
+          <button id="btnEndOnline" class="btn block danger" style="display: none" type="button">
+            <img class="btn-ico" src="../assets/icons/end-match.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.endMatch">إنهاء المباراة</span>
+          </button>
+
+          
+          <div id="pvpCompactRow" class="pvp-compact-row" style="display:none" data-i18n-aria-label="aria.pvpCompactActions"></div>
+
+          
+          <div id="pvpVoiceBar" class="pvp-voice-bar" style="display:none" data-i18n-aria-label="aria.pvpActions">
+            <button id="btnSync" class="btn" type="button" style="display:none">
+              <img class="btn-ico" src="../assets/icons/sync.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="buttons.sync">مزامنة</span>
+            </button>
+            <button id="btnSpk" class="btn" type="button">
+              <img class="btn-ico" src="../assets/icons/volume-on.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="pvp.voice.spkOn">كتم الصوت</span>
+            </button>
+            <button id="btnMic" class="btn" type="button">
+              <img class="btn-ico" src="../assets/icons/mic-on.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="pvp.voice.micOn">كتم الميكروفون</span>
+            </button>
+            <button id="btnChat" class="btn" type="button" style="display:none">
+              <img class="btn-ico" src="../assets/icons/chat.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="pvp.chat.open">الدردشة</span>
+            </button>
+          </div>
+
+          
+          <div id="specBar" class="spec-bar" style="display:none" data-i18n-aria-label="aria.spectatorControls">
+            <button id="btnSpecSpk" class="btn" type="button" data-i18n-aria-label="aria.sound" aria-label="aria.sound">
+              <img class="btn-ico" src="../assets/icons/volume-on.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="pvp.voice.spkOn">كتم الصوت</span>
+            </button>
+            <button id="btnSpecMic" class="btn" type="button" data-i18n-aria-label="aria.microphone" aria-label="aria.microphone">
+              <img class="btn-ico" src="../assets/icons/mic-on.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="pvp.voice.micOn">كتم الميكروفون</span>
+            </button>
+            <button id="btnLeaveRoom" class="btn danger" type="button" data-i18n-aria-label="aria.leaveRoom" aria-label="aria.leaveRoom">
+              <img class="btn-ico" src="../assets/icons/leave.svg" alt="" aria-hidden="true" />
+              <span class="btn-text" data-i18n="online.leaveRoom">مغادرة</span>
+            </button>
+          </div>
+        </div>
+
+
+
+
+        <div class="btn-grid" role="group" data-i18n-aria-label="aria.controls">
+          <button id="btnSettings" class="btn" type="button">
+            <img class="btn-ico" src="../assets/icons/settings.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.settings">الإعدادات</span>
+          </button>
+
+          <button id="btnNew" class="btn danger" type="button">
+            <img class="btn-ico" src="../assets/icons/new-game.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.newGame">لعبة جديدة</span>
+          </button>
+
+          <button id="btnUndo" class="btn" type="button">
+            <img class="btn-ico" src="../assets/icons/undo.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.undo">تراجع</span>
+          </button>
+
+          <button id="btnResume" class="btn" type="button">
+            <img class="btn-ico" src="../assets/icons/resume.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.resume">استئناف لعبة</span>
+          </button>
+
+          <button id="btnSave" class="btn" type="button">
+            <img class="btn-ico" src="../assets/icons/save.svg" alt="" aria-hidden="true" />
+            <span class="btn-text" data-i18n="buttons.save">حفظ لعبة</span>
+          </button>
+        </div>
+
+        <div
+          id="log"
+          class="log"
+          aria-live="polite"
+          data-i18n-aria-label="aria.activityLog"
+        ></div>
+
+        <div class="z-ad-slot z-home-ad-in-side" data-i18n="pages.ads.bottom">
+          مساحة إعلانية (مستطيل أسفل الصفحة)
+        </div>
+        <div class="z-ad-slot z-home-ad-mobile-2" data-i18n="pages.ads.bottom">
+          مساحة إعلانية (مستطيل أسفل الصفحة)
+        </div>
+      </aside>
+    </div>
+
+    <div
+      id="modalBackdrop"
+      class="modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-hidden="true"
+    >
+      <div class="modal" role="document">
+        <div class="modal-header">
+          <div
+            class="modal-title"
+            id="modalTitle"
+            data-i18n="modals.defaultTitle"
+          >
+            ...
+          </div>
+          <button
+            class="modal-close"
+            id="modalClose"
+            data-i18n-aria-label="aria.closeModal"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="modal-body" id="modalBody"></div>
+        <div class="modal-footer" id="modalFooter">
+          <div class="row" id="modalFooterButtons"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // ============================================================
+      // 0) Utilities, i18n, theming, storage, clock, log, modal
+      // ============================================================
+      const qs = (sel, root = document) => root.querySelector(sel);
+      const qsa = (sel, root = document) =>
+        Array.from(root.querySelectorAll(sel));
+      const nowHHMMSS = () => {
+        const d = new Date();
+        return d.toLocaleTimeString("en-GB", { hour12: false });
+      };
+      const popup = (
+        msg,
+        title = t("chain.notice.title") || t("modals.notice") || "تنبيه"
+      ) => {
+        const div = document.createElement("div");
+        div.style.whiteSpace = "pre-wrap";
+        div.textContent = String(msg ?? "");
+        Modal.open({
+          title,
+          body: div,
+          buttons: [
+            {
+              label: t("modals.ok") || "حسناً",
+              className: "primary",
+              onClick: () => Modal.close(),
+            },
+          ],
+        });
+      };
+      const fmtHHMMSS = (ts) => {
+        try {
+          const d = new Date(ts);
+          return d.toLocaleTimeString("en-GB", { hour12: false });
+        } catch {
+          return nowHHMMSS();
+        }
+      };
+      const logLine = (txt, ts = null) => {
+        const log = qs("#log");
+        const el = document.createElement("div");
+        el.className = "log-item";
+
+        const timeEl = document.createElement("span");
+        timeEl.className = "time";
+        timeEl.textContent = ts != null ? fmtHHMMSS(ts) : nowHHMMSS();
+
+        const msgEl = document.createElement("span");
+        msgEl.className = "msg";
+        msgEl.textContent = String(txt ?? "");
+
+        el.appendChild(timeEl);
+        el.appendChild(document.createTextNode(" "));
+        el.appendChild(msgEl);
+
+        log.prepend(el);
+        log.scrollTop = 0;
+      };
+      const AppPref = {
+        getLang() {
+          const url = new URL(location.href);
+          const q = url.searchParams.get("lang");
+          return q || localStorage.getItem("zamat.lang") || "ar";
+        },
+        setLang(lang) {
+          localStorage.setItem("zamat.lang", lang);
+        },
+        getTheme() {
+          return localStorage.getItem("zamat.theme") || "light";
+        },
+        setTheme(th) {
+          localStorage.setItem("zamat.theme", th);
+        },
+      };
+
+      function applyTheme(theme) {
+        const root = document.documentElement;
+        if (theme === "dark") root.classList.add("dark");
+        else root.classList.remove("dark");
+
+        try {
+          Visual.draw();
+        } catch (e) {}
+      }
+
+      // ============================================================
+      // Session Settings Persistence (keep on refresh, reset on tab close)
+      // ============================================================
+      function _sessionSettingsKey() {
+        return "zamat.session.settings.v1";
+      }
+      function saveSessionSettings() {
+        try {
+          sessionStorage.setItem(
+            _sessionSettingsKey(),
+            JSON.stringify(Game.settings)
+          );
+        } catch {}
+      }
+      function loadSessionSettings() {
+        try {
+          const raw = sessionStorage.getItem(_sessionSettingsKey());
+          if (!raw) return;
+          const data = JSON.parse(raw);
+          if (!data || typeof data !== "object") return;
+
+          const merged = Object.assign({}, Game.settings, data);
+          merged.advanced = Object.assign(
+            {},
+            Game.settings.advanced || {},
+            data.advanced || {}
+          );
+          Game.settings = merged;
+
+          try {
+            normalizeAdvancedSettings();
+          } catch {}
+        } catch {}
+      }
+
+      let t = (key) => key;
+      function initI18n() {
+        const langSel = qs("#topLangSel");
+        if (!langSel) return;
+        const pref = AppPref.getLang();
+        langSel.value = pref;
+        applyLanguage(pref);
+        langSel.addEventListener("change", () => {
+          applyLanguage(langSel.value);
+        });
+      }
+
+      function applyLanguage(lang) {
+        const tr =
+          (window.translations && window.translations[lang]) ||
+          (window.translations && window.translations.ar) ||
+          {};
+        const fallback = (window.translations && window.translations.ar) || {};
+
+        t = (key, vars) => {
+          const segs = String(key).split(".");
+          let cur = tr,
+            curFb = fallback;
+
+          for (const s of segs) {
+            cur = cur && typeof cur === "object" ? cur[s] : undefined;
+            curFb = curFb && typeof curFb === "object" ? curFb[s] : undefined;
+          }
+
+          let out =
+            typeof cur === "string"
+              ? cur
+              : typeof curFb === "string"
+              ? curFb
+              : key;
+
+          if (vars && typeof out === "string") {
+            out = out.replace(/\$\{(\w+)\}/g, (_, k) =>
+              vars[k] != null ? String(vars[k]) : ""
+            );
+          }
+          return out;
+        };
+
+        document.documentElement.lang = lang;
+
+        document.documentElement.classList.remove(
+          "lang-ar",
+          "lang-en",
+          "lang-fr"
+        );
+        document.documentElement.classList.add(`lang-${lang}`);
+
+        document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+
+        qsa("[data-i18n]").forEach((el) => {
+          const k = el.getAttribute("data-i18n");
+          const val = t(k);
+          if (el.tagName === "META") el.setAttribute("content", val);
+          else el.textContent = val;
+        });
+
+        qsa("[data-i18n-aria-label]").forEach((el) => {
+          const k = el.getAttribute("data-i18n-aria-label");
+          el.setAttribute("aria-label", t(k));
+        });
+
+        qsa("[data-i18n-title]").forEach((el) => {
+          const k = el.getAttribute("data-i18n-title");
+          el.setAttribute("title", t(k));
+        });
+
+        qsa("[data-i18n-placeholder]").forEach((el) => {
+          const k = el.getAttribute("data-i18n-placeholder");
+          el.setAttribute("placeholder", t(k));
+        });
+
+        qsa("[data-i18n-alt]").forEach((el) => {
+          const k = el.getAttribute("data-i18n-alt");
+          el.setAttribute("alt", t(k));
+        });
+
+        try {
+          const schemaEl = qs("#schema-data");
+          if (schemaEl) {
+            const schemaObj = {
+              "@context": "https://schema.org",
+              "@type": t("schema_game_type") || "Game",
+              name: t("schema_game_name") || "Zamat",
+              genre: t("schema_game_genre") || "Strategy Game",
+              applicationCategory: "Game",
+              operatingSystem: "Web",
+              url: location.href,
+              description: t("schema_game_description") || "",
+            };
+            schemaEl.textContent = JSON.stringify(schemaObj, null, 2);
+          }
+        } catch {}
+
+        if (!Game.names.top)
+          qs("#pTopName").textContent = t("players.black") || "⚫ الأسود";
+        if (!Game.names.bot)
+          qs("#pBotName").textContent = t("players.white") || "⚪ الأبيض";
+
+        const topNameEl = qs("#pTopName");
+        const botNameEl = qs("#pBotName");
+        const topNameM = qs("#pTopNameM");
+        const botNameM = qs("#pBotNameM");
+        if (topNameEl && topNameM) topNameM.textContent = topNameEl.textContent;
+        if (botNameEl && botNameM) botNameM.textContent = botNameEl.textContent;
+
+        UI.updateStatus();
+        try { window.Online?.refreshPvpControls?.(); } catch (e) {}
+        AppPref.setLang(lang);
+      }
+
+      function sideOfColor(color) {
+        return color === "white" ? BOT : TOP;
+      }
+
+      function sideLabel(side) {
+        const name =
+          side === TOP ? Game.names.top : side === BOT ? Game.names.bot : "";
+        if (name) return name;
+
+        return side === BOT
+          ? t("players.white") || "الأبيض"
+          : t("players.black") || "الأسود";
+      }
+      function shouldShowKillTimerAlert(clickedIdx) {
+        if (!Game.killTimer.running) return false;
+
+        const isHumanTurn =
+          window.Online && window.Online.isActive
+            ? Game.player === window.Online.mySide
+            : Game.player === humanSide();
+        if (!isHumanTurn) return false;
+
+        if (Game.inChain && clickedIdx === Game.chainPos) return false;
+
+        if (Game.inChain && Game.chainPos !== null) {
+          const v = valueAt(Game.chainPos);
+          if (v) {
+            const caps = generateCapturesFrom(Game.chainPos, v);
+            const isLegalCaptureDest = caps.some(
+              ([toIdx, _jumped]) => toIdx === clickedIdx
+            );
+            if (isLegalCaptureDest) return false;
+          }
+        }
+
+        return true;
+      }
+    </script>
+
+    <script src="../js/game.js"></script>
+    <script src="../js/ui.js"></script>
+
+    <script>
+      window.addEventListener("load", () => {
+        const statusRow = document.querySelector(".status-row");
+        const side = document.querySelector(".side");
+        const mobileHeader = document.getElementById("mobileHeader");
+        if (!statusRow || !side || !mobileHeader) return;
+
+        const originalParent = statusRow.parentNode;
+        const originalNext = statusRow.nextSibling;
+
+        const mq = window.matchMedia("(max-width: 768px)");
+        const dock = () => {
+          if (mq.matches) {
+            if (statusRow.parentNode !== mobileHeader)
+              mobileHeader.appendChild(statusRow);
+          } else {
+            if (statusRow.parentNode !== originalParent) {
+              originalParent.insertBefore(statusRow, originalNext);
+            }
+          }
+        };
+
+        dock();
+        if (mq.addEventListener) mq.addEventListener("change", dock);
+        else if (mq.addListener) mq.addListener(dock);
+        window.addEventListener("resize", dock);
+      });
+    </script>
+  </body>
+</html>
+

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<!-- Section: pages/dashboard.html — Dashboard page UI and logic -->
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title data-i18n="dashboard.title">لوحة التحكم</title>
+  <link rel="icon" type="image/png" href="../icon.png" />
+  <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="../css/pages.css" />
+  <script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-PZJ0X3E4KD');
+</script>
+</head>
+<body>
+  <main class="z-page z-dashboard z-vcenter" data-i18n-aria-label="aria.dashboard">
+    <div class="z-page-inner z-dashboard-inner">
+      <div class="z-page-head z-dashboard-head">
+        <h1 class="z-page-title" data-i18n="dashboard.title">لوحة التحكم</h1>
+      </div>
+
+      <div id="dashMsg" class="z-dash-msg" role="status" aria-live="polite"></div>
+
+      
+      <section class="z-dash-stats" data-i18n-aria-label="aria.stats">
+        <div class="z-dash-stats-row">
+          <div class="z-card z-dash-stat">
+            <div class="z-dash-stat-label" data-i18n="dashboard.totalGames">إجمالي المباريات</div>
+            <div class="z-dash-stat-value" id="statTotalGames">—</div>
+          </div>
+
+          <div class="z-card z-dash-stat">
+            <div class="z-dash-stat-label" data-i18n="dashboard.points">مجموع النقاط</div>
+            <div class="z-dash-stat-value" id="statPoints">—</div>
+          </div>
+
+          <div class="z-card z-dash-stat">
+            <div class="z-dash-stat-label z-dash-stat-label-row">
+  <span data-i18n="dashboard.rank">الترتيب العام</span>
+  <button id="btnShowLeaderboard" class="btn secondary z-dash-leaderboard-btn" type="button" data-i18n="dashboard.showLeaderboard">عرض الترتيب العام</button>
+</div>
+<div class="z-dash-stat-value" id="statRank">—</div>
+          </div>
+        </div>
+      </section>
+
+      
+      <div class="z-dash-split" data-i18n-aria-label="aria.matchDetails">
+        <section class="z-card z-dash-detail z-dash-cpu" data-i18n-aria-label="aria.vsComputer">
+          <div class="z-card-head">
+            <h2 data-i18n="dashboard.vsComputer">المباريات ضد الحاسوب</h2>
+          </div>
+          <div class="z-dash-table-wrap">
+            <table class="z-dash-table">
+              <tbody>
+                <tr>
+                  <th data-i18n="dashboard.wins">عدد الفوز</th>
+                  <td id="statCpuWins">—</td>
+                </tr>
+                <tr>
+                  <th data-i18n="dashboard.draws">عدد التعادلات</th>
+                  <td id="statCpuDraws">—</td>
+                </tr>
+                <tr>
+                  <th data-i18n="dashboard.losses">عدد الخسارات</th>
+                  <td id="statCpuLosses">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="z-card z-dash-detail z-dash-hum" data-i18n-aria-label="aria.vsHumans">
+          <div class="z-card-head">
+            <h2 data-i18n="dashboard.vsHumans">المباريات ضد البشر</h2>
+          </div>
+          <div class="z-dash-table-wrap">
+            <table class="z-dash-table">
+              <tbody>
+                <tr>
+                  <th data-i18n="dashboard.wins">عدد الفوز</th>
+                  <td id="statHumWins">—</td>
+                </tr>
+                <tr>
+                  <th data-i18n="dashboard.draws">عدد التعادلات</th>
+                  <td id="statHumDraws">—</td>
+                </tr>
+                <tr>
+                  <th data-i18n="dashboard.losses">عدد الخسارات</th>
+                  <td id="statHumLosses">—</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      
+      <section class="z-card z-dash-card z-dash-actions-card" data-i18n-aria-label="aria.editAccount">
+<div class="z-dash-actions">
+          <button class="btn secondary" id="btnEditNick" type="button" data-i18n="dashboard.editNick">تعديل الاسم المستعار</button>
+          <button class="btn secondary" id="btnEditEmail" type="button" data-i18n="dashboard.editEmail">تعديل البريد الإلكتروني الحالي</button>
+          <button class="btn secondary" id="btnEditPass" type="button" data-i18n="dashboard.editPass">تعديل كلمة المرور</button>
+          <button class="btn secondary" id="btnEditIcon" type="button" data-i18n="dashboard.editIcon">تعديل الأيقونة</button>
+          <div class="z-dash-actions-row">
+  <button class="btn danger" id="btnDeleteAccount" type="button" data-i18n="dashboard.deleteAccount">حذف الحساب</button>
+  <a class="btn primary z-dash-play-btn" href="mode.html" id="btnDashPlay">
+    <img class="btn-ico" src="../assets/icons/play.svg" alt="" aria-hidden="true" />
+    <span data-i18n="dashboard.startPlayNow">ابدأ اللعب الآن</span>
+  </a>
+</div>
+        </div>
+      </section>
+</div>
+  </main>
+
+  <div id="zModalRoot"></div>
+
+  
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+  <script src="../js/firebase.config.js"></script>
+
+  
+  <script src="../js/i18n.js"></script>
+<script src="../js/modal.js"></script>
+
+  
+  <script src="../js/app.bundle.js"></script>
+  <script src="../js/dashboard.js"></script>
+</body>
+</html>
