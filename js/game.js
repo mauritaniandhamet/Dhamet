@@ -1942,9 +1942,13 @@ function checkEndConditions() {
 
     try { UI.showGameOverModal?.(Game.winner); } catch {}
 
-    try { TrainRecorder.finalizeAndUpload({ winner: Game.winner, endReason: (Game.winner == null ? "draw" : "natural_win") }); } catch {}
-    try { TrainRecorder.startNewGame(); } catch {}
-    return;
+    try {
+      Promise.resolve(
+        TrainRecorder.finalizeAndUpload({ winner: Game.winner, endReason: (Game.winner == null ? "draw" : "natural_win") })
+      ).finally(() => {
+        try { TrainRecorder.startNewGame(); } catch {}
+      });
+    } catch {}return;
   }
 
   if (top === 1 && bot === 1 && tKings === 1 && bKings === 1) {
@@ -1952,9 +1956,13 @@ function checkEndConditions() {
     Game.winner = null;
     try { SessionGame.clear(); } catch {}
     try { UI.showGameOverModal?.(null); } catch {}
-    try { TrainRecorder.finalizeAndUpload({ winner: Game.winner, endReason: (Game.winner == null ? "draw" : "natural_win") }); } catch {}
-    try { TrainRecorder.startNewGame(); } catch {}
-  }
+    try {
+      Promise.resolve(
+        TrainRecorder.finalizeAndUpload({ winner: Game.winner, endReason: (Game.winner == null ? "draw" : "natural_win") })
+      ).finally(() => {
+        try { TrainRecorder.startNewGame(); } catch {}
+      });
+    } catch {}}
 }
 
 function scheduleForcedOpeningAutoIfNeeded() {
@@ -4099,6 +4107,24 @@ const TrainRecorder = (() => {
     cur = null;
   }
 
+  function ensureFirebaseInit() {
+    try {
+      const fb = window.firebase || (typeof firebase !== "undefined" ? firebase : null);
+      if (!fb) return false;
+
+      // If no default app exists, initialize using window.firebaseConfig (provided by js/firebase.config.js).
+      if (!fb.apps || !fb.apps.length) {
+        const cfg = (window.firebaseConfig && typeof window.firebaseConfig === "object") ? window.firebaseConfig : null;
+        if (!cfg || typeof fb.initializeApp !== "function") return false;
+        fb.initializeApp(cfg);
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+
   function packBoard() {
     
     const a = new Int8Array(N_CELLS);
@@ -4970,15 +4996,16 @@ const TrainRecorder = (() => {
     }
 
     try {
-      if (!(window.firebase && firebase.database)) {
-        _logLearningUpload(false, "no_firebase");
+      const fb = window.firebase || (typeof firebase !== "undefined" ? firebase : null);
+      if (!ensureFirebaseInit() || !fb || typeof fb.database !== "function") {
+        _logLearningUpload(false, "no_firebase_init");
         resetGame();
-        return { uploaded: false, skipped: false, reason: "no_firebase" };
+        return { uploaded: false, skipped: false, reason: "no_firebase_init" };
       }
 
       try {
-        if (firebase.auth) {
-          const a = firebase.auth();
+        if (fb.auth) {
+          const a = fb.auth();
           if (a && !a.currentUser && typeof a.signInAnonymously === "function") {
             await a.signInAnonymously().catch(() => null);
           }
@@ -4988,7 +5015,7 @@ const TrainRecorder = (() => {
       // Auth is best-effort; do not abort upload if auth is unavailable.
       // RTDB rules (if any) will enforce auth requirements.
 
-      const ref = firebase.database().ref(TRAIN_PATH).push();
+      const ref = fb.database().ref(TRAIN_PATH).push();
       record.id = ref.key;
 
       await ref.set(record);
