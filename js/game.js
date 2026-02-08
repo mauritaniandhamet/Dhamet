@@ -4834,6 +4834,95 @@ const TrainRecorder = (() => {
     return { ok: true };
   }
 
+
+  // Local mirror of the RTDB rules for trainGamesV3 writes.
+  // Used only to pinpoint which validate clause is rejecting the record when the server returns PERMISSION_DENIED.
+  function _localRulesCheckTrainRecord(record) {
+    const fail = (path, reason) => ({ ok: false, path: String(path || ""), reason: String(reason || "") });
+    const ok = () => ({ ok: true });
+
+    const isNum = (v) => (typeof v === "number" && Number.isFinite(v));
+    const isBool = (v) => (typeof v === "boolean");
+    const isStr = (v) => (typeof v === "string");
+    const isObj = (v) => (!!v && typeof v === "object" && !Array.isArray(v));
+
+    if (!record || typeof record !== "object") return fail("/", "record_not_object");
+
+    // $gameId validate (core)
+    if (!isNum(record.schema) || record.schema !== 3) return fail("schema", "schema_must_be_3_number");
+    if (!isStr(record.mode) || record.mode.length > 24) return fail("mode", "mode_string_len");
+    if (!isNum(record.startedAt)) return fail("startedAt", "startedAt_number");
+    if (!isNum(record.endedAt)) return fail("endedAt", "endedAt_number");
+    if (!isNum(record.durationMs)) return fail("durationMs", "durationMs_number");
+    if (!isStr(record.endReason) || record.endReason.length > 24) return fail("endReason", "endReason_string_len");
+    if (!isBool(record.processed)) return fail("processed", "processed_boolean");
+    if (!isNum(record.purgeAt)) return fail("purgeAt", "purgeAt_number");
+
+    if (record.winner != null && !isNum(record.winner)) return fail("winner", "winner_number_or_missing");
+    if (record.id != null && !isStr(record.id)) return fail("id", "id_string_or_missing");
+
+    // Size caps (steps/12000 and samples/60000 must NOT exist)
+    if (!Array.isArray(record.steps)) return fail("steps", "steps_must_be_array");
+    if (!Array.isArray(record.samples)) return fail("samples", "samples_must_be_array");
+
+    if (record.steps.length > 12000) return fail("steps/12000", "steps_too_long");
+    if (record.samples.length > 60000) return fail("samples/60000", "samples_too_long");
+
+    // steps/$i validate
+    for (let i = 0; i < record.steps.length; i++) {
+      const st = record.steps[i];
+      // If an element is null/undefined, RTDB will treat it as missing; skip strict checks.
+      if (st == null) continue;
+
+      if (!Array.isArray(st)) return fail(`steps/${i}`, "step_must_be_array");
+      if (!(st.length === 2)) return fail(`steps/${i}`, "step_must_have_exactly_2_items");
+      if (!isStr(st[0]) || st[0].length > 8) return fail(`steps/${i}/0`, "step0_string_len");
+      if (!isStr(st[1]) || st[1].length > 8) return fail(`steps/${i}/1`, "step1_string_len");
+    }
+
+    // samples/$i validate
+    for (let i = 0; i < record.samples.length; i++) {
+      const sm = record.samples[i];
+      if (sm == null) continue;
+
+      if (!isObj(sm)) return fail(`samples/${i}`, "sample_must_be_object");
+      // required fields
+      if (!("s" in sm)) return fail(`samples/${i}/s`, "missing_s");
+      if (!("a" in sm)) return fail(`samples/${i}/a`, "missing_a");
+      if (!("actor" in sm)) return fail(`samples/${i}/actor`, "missing_actor");
+      if (!("cap" in sm)) return fail(`samples/${i}/cap`, "missing_cap");
+      if (!("crown" in sm)) return fail(`samples/${i}/crown`, "missing_crown");
+      if (!("trap" in sm)) return fail(`samples/${i}/trap`, "missing_trap");
+      if (!("t" in sm)) return fail(`samples/${i}/t`, "missing_t");
+
+      if (!isNum(sm.a)) return fail(`samples/${i}/a`, "a_number");
+      if (!isNum(sm.actor)) return fail(`samples/${i}/actor`, "actor_number");
+      if (!isNum(sm.cap)) return fail(`samples/${i}/cap`, "cap_number");
+      if (!isNum(sm.crown)) return fail(`samples/${i}/crown`, "crown_number");
+      if (!isNum(sm.trap)) return fail(`samples/${i}/trap`, "trap_number");
+      if (!isNum(sm.t)) return fail(`samples/${i}/t`, "t_number");
+
+      if (!isObj(sm.s)) return fail(`samples/${i}/s`, "s_must_be_object");
+      if (!("b" in sm.s)) return fail(`samples/${i}/s/b`, "missing_b");
+      if (!("p" in sm.s)) return fail(`samples/${i}/s/p`, "missing_p");
+      if (!("ic" in sm.s)) return fail(`samples/${i}/s/ic`, "missing_ic");
+      if (!("cp" in sm.s)) return fail(`samples/${i}/s/cp`, "missing_cp");
+
+      if (!isStr(sm.s.b) || sm.s.b.length > 256) return fail(`samples/${i}/s/b`, "b_string_len");
+      if (!isNum(sm.s.p)) return fail(`samples/${i}/s/p`, "p_number");
+      if (!isNum(sm.s.ic)) return fail(`samples/${i}/s/ic`, "ic_number");
+      if (!isNum(sm.s.cp)) return fail(`samples/${i}/s/cp`, "cp_number");
+
+      // optional numeric fields (if present, must be number)
+      const optNums = ["sf","sfFlags","sfDecision","Lmax","Ls","capturesDone","sfStartedFrom"];
+      for (const k of optNums) {
+        if (k in sm && sm[k] != null && !isNum(sm[k])) return fail(`samples/${i}/${k}`, `${k}_must_be_number_or_missing`);
+      }
+    }
+
+    return ok();
+  }
+
   async function finalizeAndUpload({ winner = null, endReason = null } = {}) {
     const g = ensureGame();
     const endedAt = nowMs();
@@ -4909,6 +4998,7 @@ const TrainRecorder = (() => {
         return { uploaded: false, skipped: false, reason: "no_firebase" };
       }
 
+            // Learning upload does not require Firebase Auth (public create allowed in RTDB rules).
       const ref = firebase.database().ref(TRAIN_PATH).push();
       record.id = ref.key;
 
@@ -4920,6 +5010,12 @@ const TrainRecorder = (() => {
       return { uploaded: true, id: record.id };
     } catch (e) {
       console.warn("TrainRecorder upload failed:", e);
+      try {
+        const local = _localRulesCheckTrainRecord(record);
+        if (local && local.ok === false) console.warn("TrainRecorder local RTDB validate FAIL:", local);
+        else console.warn("TrainRecorder local RTDB validate OK (but server denied)");
+      } catch (_) {}
+
       _logLearningUpload(false, _dbErrorReason(e) || "upload_failed");
       resetGame();
       return { uploaded: false, skipped: false, reason: "upload_failed" };
