@@ -4497,6 +4497,96 @@ const TrainRecorder = (() => {
   }
 
 
+  // --- Training upload sanitization to match RTDB rules (trainGamesV3) ---
+  function _isFiniteNumber(x){ return (typeof x === "number") && Number.isFinite(x); }
+
+  function _sanitizeStepsForTraining(steps){
+    const out = [];
+    try{
+      if (!Array.isArray(steps)) return out;
+      const n = Math.min(steps.length, 12000);
+      for (let i=0;i<n;i++){
+        const st = steps[i];
+        if (!Array.isArray(st) || st.length < 2) continue;
+        const a = st[0], b = st[1];
+        if (typeof a !== "string" || typeof b !== "string") continue;
+        if (a.length > 8 || b.length > 8) continue;
+        out.push([a, b]);
+      }
+    } catch(_) {}
+    return out;
+  }
+
+  function _sanitizeSamplesForTraining(samples){
+    const out = [];
+    try{
+      if (!Array.isArray(samples)) return out;
+      const n = Math.min(samples.length, 60000);
+      for (let i=0;i<n;i++){
+        const s = samples[i];
+        if (!s || typeof s !== "object") continue;
+
+        const st = s.s;
+        if (!st || typeof st !== "object") continue;
+
+        const b = st.b;
+        if (typeof b !== "string" || b.length > 256) continue;
+
+        const p = st.p, ic = st.ic, cp = st.cp;
+        if (!_isFiniteNumber(p) || !_isFiniteNumber(ic) || !_isFiniteNumber(cp)) continue;
+
+        const a = s.a, actor = s.actor, cap = s.cap, crown = s.crown, trap = s.trap, t0 = s.t;
+        if (!_isFiniteNumber(a) || !_isFiniteNumber(actor) || !_isFiniteNumber(cap) || !_isFiniteNumber(crown) || !_isFiniteNumber(trap) || !_isFiniteNumber(t0)) continue;
+
+        const clean = {
+          s: { b: b, p: p, ic: ic, cp: cp },
+          a: a,
+          actor: actor,
+          cap: cap,
+          crown: crown,
+          trap: trap,
+          t: t0,
+        };
+
+        // Optional numeric fields (only keep if finite numbers)
+        const optKeys = ["sf","sfFlags","sfDecision","Lmax","Ls","capturesDone","sfStartedFrom"];
+        for (const k of optKeys){
+          if (Object.prototype.hasOwnProperty.call(s, k) && _isFiniteNumber(s[k])) clean[k] = s[k];
+        }
+
+        out.push(clean);
+      }
+    } catch(_) {}
+    return out;
+  }
+
+  function _trainRecordFirstRuleViolation(rec){
+    try{
+      if (!rec || typeof rec !== "object") return "root_not_object";
+      const req = ["schema","mode","startedAt","endedAt","durationMs","endReason","steps","samples","processed","purgeAt"];
+      for (const k of req){ if (!(k in rec)) return "missing_"+k; }
+
+      if (!_isFiniteNumber(rec.schema) || (rec.schema|0) !== 3) return "schema";
+      if (typeof rec.mode !== "string" || rec.mode.length > 24) return "mode";
+      if (!_isFiniteNumber(rec.startedAt)) return "startedAt";
+      if (!_isFiniteNumber(rec.endedAt)) return "endedAt";
+      if (!_isFiniteNumber(rec.durationMs)) return "durationMs";
+      if (typeof rec.endReason !== "string" || rec.endReason.length > 24) return "endReason";
+      if (typeof rec.processed !== "boolean") return "processed";
+      if (!_isFiniteNumber(rec.purgeAt)) return "purgeAt";
+      if (Object.prototype.hasOwnProperty.call(rec, "winner") && rec.winner != null && !_isFiniteNumber(rec.winner)) return "winner";
+      if (Object.prototype.hasOwnProperty.call(rec, "id") && rec.id != null && typeof rec.id !== "string") return "id";
+
+      if (Array.isArray(rec.steps) && rec.steps.length > 12000) return "steps_too_many";
+      if (Array.isArray(rec.samples) && rec.samples.length > 60000) return "samples_too_many";
+
+      return null;
+    } catch(_) {
+      return "validator_error";
+    }
+  }
+
+
   function _isRegisteredSession() {
     try {
       const s = (window.ZAuth && typeof ZAuth.readSession === "function") ? ZAuth.readSession() : null;
@@ -4855,6 +4945,25 @@ const TrainRecorder = (() => {
       processed: false,
       purgeAt: endedAt + KEEP_MS,
     };
+
+    // Sanitize training payload so it matches RTDB validation for trainGamesV3 exactly.
+    try {
+      const _origStepsLen = Array.isArray(record.steps) ? record.steps.length : 0;
+      const _origSamplesLen = Array.isArray(record.samples) ? record.samples.length : 0;
+
+      record.steps = _sanitizeStepsForTraining(record.steps);
+      record.samples = _sanitizeSamplesForTraining(record.samples);
+
+      const _v = _trainRecordFirstRuleViolation(record);
+      if (_v) console.warn("TrainRecorder record violates RTDB rules:", _v, record);
+
+      if (_origStepsLen !== record.steps.length || _origSamplesLen !== record.samples.length) {
+        console.warn("TrainRecorder sanitized payload:", {
+          stepsDropped: _origStepsLen - record.steps.length,
+          samplesDropped: _origSamplesLen - record.samples.length
+        });
+      }
+    } catch (_) {}
 
     
     
