@@ -1,25 +1,32 @@
 {
   "new": {
+    "version": "20260209_0554",
+    "file": "assets/models/human/human_learned_20260209_0554.onnx",
+    "updatedAt": 1770616479140
+  },
+  "old_current": {
+    "file": "assets/models/human/human_learned_20260208_1316.onnx",
+    "updatedAt": 1770556619580,
+    "version": "20260208_1316"
+  },
+  "old_previous": null,
+  "prev_ptr": {
     "version": "20260208_1316",
     "file": "assets/models/human/human_learned_20260208_1316.onnx",
-    "updatedAt": 1770556619580
+    "updatedAt": 1770616479140
   },
-  "old_current": null,
-  "old_previous": null,
-  "prev_ptr": null,
   "used_game_ids": [
-    "-OkxK2u18JnWMjQ0JHOS"
+    "-Okyvz9QNg6cKKrcY8NF",
+    "-OkzEX5eGnB8RUsYxvfF"
   ],
   "purge_game_ids": [],
   "stats": {
-    "games_seen": 1,
-    "games_used": 1,
-    "samples_used": 80,
+    "games_seen": 2,
+    "games_used": 2,
+    "samples_used": 145,
     "files_removed": [
-      "assets/models/human/human_learned_20260208_1316.onnx.data",
-      "assets/models/human/human_learned_20260124_0302.onnx",
-      "assets/models/human/human_ckpt_20260124_0302.pt"
+      "assets/models/human/human_learned_20260209_0554.onnx.data"
     ]
   },
-  "createdAt": 1770556619585
+  "createdAt": 1770616479141
 }
