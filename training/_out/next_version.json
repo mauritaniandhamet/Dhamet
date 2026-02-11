@@ -1,44 +1,38 @@
 {
   "new": {
-    "version": "20260210_0604",
-    "file": "assets/models/human/human_learned_20260210_0604.onnx",
-    "updatedAt": 1770703442903
+    "version": "20260211_0556",
+    "file": "assets/models/human/human_learned_20260211_0556.onnx",
+    "updatedAt": 1770789382516
   },
   "old_current": {
-    "file": "assets/models/human/human_learned_20260209_0554.onnx",
-    "updatedAt": 1770616479140,
-    "version": "20260209_0554"
+    "file": "assets/models/human/human_learned_20260210_0604.onnx",
+    "updatedAt": 1770703442903,
+    "version": "20260210_0604"
   },
   "old_previous": {
-    "file": "assets/models/human/human_learned_20260208_1316.onnx",
-    "updatedAt": 1770616479140,
-    "version": "20260208_1316"
+    "file": "assets/models/human/human_learned_20260209_0554.onnx",
+    "updatedAt": 1770703442903,
+    "version": "20260209_0554"
   },
   "prev_ptr": {
-    "version": "20260209_0554",
-    "file": "assets/models/human/human_learned_20260209_0554.onnx",
-    "updatedAt": 1770703442903
+    "version": "20260210_0604",
+    "file": "assets/models/human/human_learned_20260210_0604.onnx",
+    "updatedAt": 1770789382516
   },
   "used_game_ids": [
-    "-Ol-yQghg28ktMyctA9H",
-    "-Ol0hxrVfIen2irSp_EG",
-    "-Ol0kT_-tn6YwTa63Lfr",
-    "-Ol0l1PSaX3klfLG910a",
-    "-Ol0m3ySnVpzp5TQUHyc",
-    "-Ol0njQBQY7G7oa0gdDH",
-    "-Ol0pU_Jiu-SmciavrpR",
-    "-Ol3L5QIgcAdwEOYg7bm"
+    "-Ol7_pS-zooJH-mOUnOd",
+    "-Ol80QHMen23eAEh_njf"
   ],
   "purge_game_ids": [],
   "stats": {
-    "games_seen": 8,
-    "games_used": 8,
-    "samples_used": 607,
+    "games_seen": 2,
+    "games_used": 2,
+    "samples_used": 187,
     "files_removed": [
-      "assets/models/human/human_ckpt_20260208_1316.pt",
-      "assets/models/human/human_learned_20260210_0604.onnx.data",
-      "assets/models/human/human_learned_20260208_1316.onnx"
+      "assets/models/human/human_learned_20260209_0554.onnx",
+      "assets/models/human/human_ckpt_20260209_0554.pt",
+      "assets/models/human/human_learned_20260211_0556.onnx.data"
     ]
   },
-  "createdAt": 1770703442908
+  "createdAt": 1770789382521
 }
