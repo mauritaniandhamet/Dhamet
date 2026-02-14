@@ -1,37 +1,39 @@
 {
   "new": {
-    "version": "20260213_0546",
-    "file": "assets/models/human/human_learned_20260213_0546.onnx",
-    "updatedAt": 1770961579483
+    "version": "20260214_0515",
+    "file": "assets/models/human/human_learned_20260214_0515.onnx",
+    "updatedAt": 1771046145855
   },
   "old_current": {
-    "file": "assets/models/human/human_learned_20260212_0550.onnx",
-    "updatedAt": 1770875406805,
-    "version": "20260212_0550"
+    "file": "assets/models/human/human_learned_20260213_0546.onnx",
+    "updatedAt": 1770961579483,
+    "version": "20260213_0546"
   },
   "old_previous": {
-    "file": "assets/models/human/human_learned_20260211_0556.onnx",
-    "updatedAt": 1770875406805,
-    "version": "20260211_0556"
+    "file": "assets/models/human/human_learned_20260212_0550.onnx",
+    "updatedAt": 1770961579483,
+    "version": "20260212_0550"
   },
   "prev_ptr": {
-    "version": "20260212_0550",
-    "file": "assets/models/human/human_learned_20260212_0550.onnx",
-    "updatedAt": 1770961579483
+    "version": "20260213_0546",
+    "file": "assets/models/human/human_learned_20260213_0546.onnx",
+    "updatedAt": 1771046145855
   },
   "used_game_ids": [
-    "-OlHf7cF9O5IVEvU95j7"
+    "-OlMn1YPbnk1mDL01bHU",
+    "-OlNFkfOl7i5WzJm2gB3",
+    "-OlNH659s_MqaXovMiHr"
   ],
   "purge_game_ids": [],
   "stats": {
-    "games_seen": 1,
-    "games_used": 1,
-    "samples_used": 96,
+    "games_seen": 3,
+    "games_used": 3,
+    "samples_used": 235,
     "files_removed": [
-      "assets/models/human/human_learned_20260213_0546.onnx.data",
-      "assets/models/human/human_ckpt_20260211_0556.pt",
-      "assets/models/human/human_learned_20260211_0556.onnx"
+      "assets/models/human/human_learned_20260212_0550.onnx",
+      "assets/models/human/human_learned_20260214_0515.onnx.data",
+      "assets/models/human/human_ckpt_20260212_0550.pt"
     ]
   },
-  "createdAt": 1770961579489
+  "createdAt": 1771046145858
 }
