@@ -1,39 +1,46 @@
 {
   "new": {
-    "version": "20260214_0515",
-    "file": "assets/models/human/human_learned_20260214_0515.onnx",
-    "updatedAt": 1771046145855
+    "version": "20260215_0538",
+    "file": "assets/models/human/human_learned_20260215_0538.onnx",
+    "updatedAt": 1771133937284
   },
   "old_current": {
-    "file": "assets/models/human/human_learned_20260213_0546.onnx",
-    "updatedAt": 1770961579483,
-    "version": "20260213_0546"
+    "file": "assets/models/human/human_learned_20260214_0515.onnx",
+    "updatedAt": 1771046145855,
+    "version": "20260214_0515"
   },
   "old_previous": {
-    "file": "assets/models/human/human_learned_20260212_0550.onnx",
-    "updatedAt": 1770961579483,
-    "version": "20260212_0550"
+    "file": "assets/models/human/human_learned_20260213_0546.onnx",
+    "updatedAt": 1771046145855,
+    "version": "20260213_0546"
   },
   "prev_ptr": {
-    "version": "20260213_0546",
-    "file": "assets/models/human/human_learned_20260213_0546.onnx",
-    "updatedAt": 1771046145855
+    "version": "20260214_0515",
+    "file": "assets/models/human/human_learned_20260214_0515.onnx",
+    "updatedAt": 1771133937284
   },
   "used_game_ids": [
-    "-OlMn1YPbnk1mDL01bHU",
-    "-OlNFkfOl7i5WzJm2gB3",
-    "-OlNH659s_MqaXovMiHr"
+    "-OlRkE_fLQLe6GCI7iYC",
+    "-OlRludTIF6BJ_tLmP_j",
+    "-OlRoCQLgGZDTKbQ6kwX",
+    "-OlRqQxX6wcr7E7dYmZ7",
+    "-OlRsbhaHnPh5sbHJxbC",
+    "-OlRyxE4YkULv1UwFsae",
+    "-OlSAvxRLDRdtGIuzHfw",
+    "-OlSu9sez5rl9sjXuZH0",
+    "-OlT2TMG15wG0xV-Ym98",
+    "-OlTA0YkZiMdALEz2d6L"
   ],
   "purge_game_ids": [],
   "stats": {
-    "games_seen": 3,
-    "games_used": 3,
-    "samples_used": 235,
+    "games_seen": 10,
+    "games_used": 10,
+    "samples_used": 1047,
     "files_removed": [
-      "assets/models/human/human_learned_20260212_0550.onnx",
-      "assets/models/human/human_learned_20260214_0515.onnx.data",
-      "assets/models/human/human_ckpt_20260212_0550.pt"
+      "assets/models/human/human_ckpt_20260213_0546.pt",
+      "assets/models/human/human_learned_20260215_0538.onnx.data",
+      "assets/models/human/human_learned_20260213_0546.onnx"
     ]
   },
-  "createdAt": 1771046145858
+  "createdAt": 1771133937289
 }
